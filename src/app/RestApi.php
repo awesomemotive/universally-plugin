@@ -1,0 +1,267 @@
+<?php
+/**
+ * REST API endpoints for admin dashboard
+ *
+ * @package Universally
+ */
+
+namespace Universally;
+
+use WP_REST_Request;
+use WP_REST_Response;
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+class RestApi
+{
+
+    private const NAMESPACE = 'universally/v1';
+    private Http $http;
+
+    public function __construct()
+    {
+        $this->http = new Http();
+        add_action('rest_api_init', [$this, 'registerRoutes']);
+    }
+
+    /**
+     * Register all REST API routes
+     *
+     * @return void
+     */
+    public function registerRoutes(): void
+    {
+        // Validate API key (GET to re-validate, POST to activate/deactivate)
+        register_rest_route(self::NAMESPACE, '/validate-api-key', [
+            [
+                'methods' => 'GET',
+                'callback' => [$this, 'getApiKey'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+            [
+                'methods' => 'POST',
+                'callback' => [$this, 'postApiKey'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
+        // Get languages
+        register_rest_route(self::NAMESPACE, '/languages', [
+            'methods' => 'GET',
+            'callback' => [$this, 'getLanguages'],
+            'permission_callback' => [$this, 'checkPermission'],
+        ]);
+
+        // Refresh languages cache (called by API server)
+        register_rest_route(self::NAMESPACE, '/refresh-languages', [
+            'methods' => 'POST',
+            'callback' => [$this, 'refreshLanguages'],
+            'permission_callback' => [$this, 'checkSecretKey'],
+        ]);
+
+        // Refresh site config cache (called by API server)
+        register_rest_route(self::NAMESPACE, '/refresh-site-config', [
+            'methods' => 'POST',
+            'callback' => [$this, 'refreshSiteConfig'],
+            'permission_callback' => [$this, 'checkSecretKey'],
+        ]);
+
+    }
+
+    /**
+     * Check if user has permission to access endpoints
+     *
+     * @return bool True if user can manage options
+     */
+    public function checkPermission(): bool
+    {
+        return current_user_can('manage_options');
+    }
+
+    /**
+     * Check if request has a valid secret key (for server-to-server calls)
+     *
+     * @param WP_REST_Request $request Request object
+     * @return bool True if secret key is valid
+     */
+    public function checkSecretKey(WP_REST_Request $request): bool
+    {
+        $secretKey = $request->get_header('X-Secret-Key');
+        $storedKey = universally_get_private_api_key();
+
+        return !empty($secretKey) && !empty($storedKey) && hash_equals($storedKey, $secretKey);
+    }
+
+    /**
+     * Get languages
+     *
+     * @return WP_REST_Response
+     */
+    public function getLanguages(): WP_REST_Response
+    {
+        $languages = universally_get_all_languages(true);
+
+        return new WP_REST_Response([
+            'success' => true,
+            'languages' => $languages
+        ], 200);
+    }
+
+    /**
+     * GET /validate-api-key — re-validate the stored API key
+     *
+     * @return WP_REST_Response
+     */
+    public function getApiKey(): WP_REST_Response
+    {
+        $key = get_option('universally_api_key', '');
+
+        if (empty($key)) {
+            return new WP_REST_Response([
+                'valid'   => false,
+                'message' => '',
+            ], 200);
+        }
+
+        $result = $this->verifyKey($key);
+
+        return new WP_REST_Response([
+            'valid'   => $result['valid'],
+            'message' => $result['message'],
+            'value'   => $this->maskKey($key),
+        ], 200);
+    }
+
+    /**
+     * POST /validate-api-key — activate or deactivate an API key
+     *
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response
+     */
+    public function postApiKey(WP_REST_Request $request): WP_REST_Response
+    {
+        $body   = $request->get_json_params();
+        $action = $body['action'] ?? null;
+
+        if ($action === 'deactivate') {
+            delete_option('universally_api_key');
+            return new WP_REST_Response([
+                'valid'   => false,
+                'message' => __('API key deactivated.', 'universally-language-translation-multilingual-tool'),
+            ], 200);
+        }
+
+        $value = $body['value'] ?? '';
+
+        if (empty($value)) {
+            return new WP_REST_Response([
+                'valid'   => false,
+                'message' => __('API key is required.', 'universally-language-translation-multilingual-tool'),
+            ], 200);
+        }
+
+        if (!preg_match('/^[0-9a-f]{64}$/i', $value)) {
+            return new WP_REST_Response([
+                'valid'   => false,
+                'message' => __('API key format is invalid.', 'universally-language-translation-multilingual-tool'),
+            ], 200);
+        }
+
+        $result = $this->verifyKey($value);
+
+        if ($result['valid']) {
+            update_option('universally_api_key', $value);
+        }
+
+        return new WP_REST_Response([
+            'valid'   => $result['valid'],
+            'message' => $result['message'],
+        ], 200);
+    }
+
+    /**
+     * POST /refresh-languages — refresh languages cache, validated by secret key
+     */
+    public function refreshLanguages(): WP_REST_Response
+    {
+        $languages = universally_get_all_languages(true);
+
+        return new WP_REST_Response(['success' => true, 'languages' => $languages], 200);
+    }
+
+    /**
+     * POST /refresh-site-config — refresh site config cache, validated by secret key
+     */
+    public function refreshSiteConfig(): WP_REST_Response
+    {
+        universally_get_exclude_pages(true);
+
+        return new WP_REST_Response(['success' => true], 200);
+    }
+
+    /**
+     * Verify an API key against the Universally API
+     *
+     * @param string $key The API key to verify
+     * @return array{valid: bool, message: string}
+     */
+    private function verifyKey(string $key): array
+    {
+        $response = $this->http->get('/connect/keys/verify', [
+            'X-API-Key' => $key,
+        ]);
+
+        if ($response === false) {
+            Log::error('API key verification failed: cURL error');
+            return [
+                'valid'   => false,
+                'message' => __('Could not connect to the API server. Please try again later.', 'universally-language-translation-multilingual-tool'),
+            ];
+        }
+
+        $code = $response['code'] ?? null;
+
+        $errorMap = [
+            'API_KEY_INVALID'        => __('API key is invalid.', 'universally-language-translation-multilingual-tool'),
+            'API_KEY_INVALID_FORMAT' => __('API key format is invalid.', 'universally-language-translation-multilingual-tool'),
+            'SITE_IS_DELETED'        => __('The site associated with this key has been deleted.', 'universally-language-translation-multilingual-tool'),
+        ];
+
+        if ($code === 'KEY_VALID') {
+            return [
+                'valid'   => true,
+                'message' => __('API key is valid.', 'universally-language-translation-multilingual-tool'),
+            ];
+        }
+
+        if (isset($errorMap[$code])) {
+            return [
+                'valid'   => false,
+                'message' => $errorMap[$code],
+            ];
+        }
+
+        return [
+            'valid'   => false,
+            'message' => __('Could not verify API key. Please try again.', 'universally-language-translation-multilingual-tool'),
+        ];
+    }
+
+    /**
+     * Mask a key for display: first 4 + asterisks + last 4
+     *
+     * @param string $key The key to mask
+     * @return string Masked key
+     */
+    private function maskKey(string $key): string
+    {
+        if (strlen($key) <= 8) {
+            return $key;
+        }
+
+        return substr($key, 0, 4) . str_repeat('*', 56) . substr($key, -4);
+    }
+
+}

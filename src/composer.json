@@ -1,0 +1,15 @@
+{
+  "name": "universally/wordpress-plugin",
+  "description": "Automatic website translation for WordPress",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "minimum-stability": "stable",
+  "require": {
+    "php": ">=7.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Universally\\": "app/"
+    }
+  }
+}

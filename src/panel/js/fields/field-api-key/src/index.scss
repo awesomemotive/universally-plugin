@@ -1,0 +1,54 @@
+.wp-panel-api-key {
+  &__input-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  &__button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &--validate,
+    &--deactivate{
+      background: var(--wp-panel-primary, #0073aa);
+      color: #fff;
+
+      &:hover:not(:disabled) {
+        background: var(--wp-panel-primary-hover, #006799);
+      }
+    }
+  }
+
+  &__feedback {
+    margin-top: 8px;
+    font-size: 13px;
+
+    &--success {
+      color: #00a32a;
+    }
+
+    &--error {
+      color: #d63638;
+    }
+
+    &--info {
+      color: #dba617;
+    }
+  }
+
+  &__checkmark {
+    margin-right: 4px;
+    font-weight: 700;
+  }
+}

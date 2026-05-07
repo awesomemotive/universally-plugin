@@ -1,0 +1,598 @@
+{
+  "$schema": "https://raw.githubusercontent.com/timkit-dev/wppanel/main/schema/wppanel-schema.json",
+  "namespace": "Universally\\Panel",
+  "prefix": "universally",
+  "paths": {
+    "php": "panel/src",
+    "js": "panel/js"
+  },
+  "installed": {
+    "core": "0.1.0",
+    "text": "0.1.0",
+    "select": "0.1.0",
+    "toggle": "0.1.0",
+    "cards": "0.1.0",
+    "checkbox": "0.1.0",
+    "checkboxes": "0.1.0",
+    "license-key": "0.1.0",
+    "number": "0.1.0",
+    "radio": "0.1.0",
+    "textarea": "0.1.0",
+    "copyable": "0.1.0",
+    "languages-table": "custom:license-key",
+    "color": "custom:text",
+    "range": "custom:text"
+  },
+  "baseFieldSchema": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique field identifier"
+      },
+      "type": {
+        "type": "string",
+        "description": "Field type (text, select, toggle, etc.)"
+      },
+      "label": {
+        "type": "string",
+        "description": "Display label for the field"
+      },
+      "description": {
+        "type": "string",
+        "description": "Help text shown below the field"
+      },
+      "default": {
+        "description": "Default value for the field"
+      },
+      "validate": {
+        "type": "string",
+        "description": "Validation rules (e.g., required|max:100)"
+      },
+      "sanitize": {
+        "type": "string",
+        "description": "Sanitization rules (e.g., trim|text_field)"
+      },
+      "storage": {
+        "type": "string",
+        "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+      }
+    },
+    "required": [
+      "id",
+      "type",
+      "label"
+    ]
+  },
+  "baseFieldPrompts": [
+    {
+      "name": "label",
+      "message": "Field label:",
+      "required": true
+    },
+    {
+      "name": "id",
+      "message": "Field ID:"
+    },
+    {
+      "name": "description",
+      "message": "Description (optional):"
+    },
+    {
+      "name": "validate",
+      "message": "Validation rules (e.g., required|max:100):"
+    },
+    {
+      "name": "sanitize",
+      "message": "Sanitization (e.g., trim|text_field):"
+    },
+    {
+      "name": "storage",
+      "message": "Storage mode:",
+      "type": "list",
+      "choices": [
+        "single",
+        "separate"
+      ],
+      "default": "single"
+    }
+  ],
+  "tabSchema": {
+    "properties": {
+      "type": {
+        "const": "tab"
+      },
+      "id": {
+        "type": "string"
+      },
+      "label": {
+        "type": "string"
+      },
+      "capability": {
+        "type": "string",
+        "description": "Required capability to view this tab and its fields"
+      },
+      "storage": {
+        "type": "string",
+        "enum": [
+          "single",
+          "separate"
+        ],
+        "description": "Storage mode for fields in this tab"
+      }
+    },
+    "required": [
+      "type",
+      "id",
+      "label"
+    ]
+  },
+  "fieldSchemas": {
+    "text": {
+      "properties": {
+        "placeholder": {
+          "type": "string",
+          "description": "Placeholder text"
+        },
+        "inputType": {
+          "type": "string",
+          "enum": [
+            "text",
+            "email",
+            "url",
+            "password"
+          ],
+          "default": "text",
+          "description": "HTML input type"
+        }
+      }
+    },
+    "select": {
+      "properties": {
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Key-value pairs for select options"
+        }
+      },
+      "required": [
+        "options"
+      ]
+    },
+    "toggle": {},
+    "cards": {
+      "properties": {
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "label"
+                ]
+              }
+            ]
+          },
+          "description": "Key-value pairs for options (value can be string or {label, description})"
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum selections. 1 = single select, omit for unlimited."
+        },
+        "columns": {
+          "type": "integer",
+          "enum": [
+            1,
+            2,
+            3
+          ],
+          "default": 1,
+          "description": "Number of columns (1, 2, or 3). Cards stack when narrower than 250px."
+        }
+      },
+      "required": [
+        "options"
+      ]
+    },
+    "checkbox": {},
+    "checkboxes": {
+      "properties": {
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Key-value pairs for checkbox options"
+        }
+      },
+      "required": [
+        "options"
+      ]
+    },
+    "license-key": {
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "description": "REST API endpoint for license validation"
+        },
+        "independent": {
+          "type": "boolean",
+          "const": true,
+          "default": true,
+          "description": "Always true - field manages its own save"
+        },
+        "placeholder": {
+          "type": "string",
+          "description": "Placeholder text for input"
+        }
+      },
+      "required": [
+        "endpoint"
+      ]
+    },
+    "number": {
+      "properties": {
+        "min": {
+          "type": "number",
+          "description": "Minimum allowed value"
+        },
+        "max": {
+          "type": "number",
+          "description": "Maximum allowed value"
+        },
+        "step": {
+          "type": "number",
+          "description": "Increment step"
+        }
+      }
+    },
+    "radio": {
+      "properties": {
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Key-value pairs for radio options"
+        }
+      },
+      "required": [
+        "options"
+      ]
+    },
+    "textarea": {
+      "properties": {
+        "placeholder": {
+          "type": "string",
+          "description": "Placeholder text"
+        },
+        "rows": {
+          "type": "number",
+          "default": 4,
+          "description": "Number of visible text rows"
+        }
+      }
+    },
+    "copyable": {
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "Text to display and copy"
+        },
+        "buttonText": {
+          "type": "string",
+          "description": "Button label (default: 'Copy')"
+        },
+        "copiedText": {
+          "type": "string",
+          "description": "Text shown after copying (default: 'Copied!')"
+        }
+      },
+      "required": [
+        "content"
+      ]
+    },
+    "languages-table": {
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "description": "REST API endpoint for license validation"
+        },
+        "independent": {
+          "type": "boolean",
+          "const": true,
+          "default": true,
+          "description": "Always true - field manages its own save"
+        },
+        "placeholder": {
+          "type": "string",
+          "description": "Placeholder text for input"
+        }
+      },
+      "required": [
+        "endpoint"
+      ]
+    },
+    "color": {
+      "properties": {
+        "placeholder": {
+          "type": "string",
+          "description": "Placeholder text"
+        },
+        "inputType": {
+          "type": "string",
+          "enum": [
+            "text",
+            "email",
+            "url",
+            "password"
+          ],
+          "default": "text",
+          "description": "HTML input type"
+        }
+      }
+    },
+    "range": {
+      "properties": {
+        "placeholder": {
+          "type": "string",
+          "description": "Placeholder text"
+        },
+        "inputType": {
+          "type": "string",
+          "enum": [
+            "text",
+            "email",
+            "url",
+            "password"
+          ],
+          "default": "text",
+          "description": "HTML input type"
+        }
+      }
+    }
+  },
+  "fieldPrompts": {
+    "text": [
+      {
+        "name": "placeholder",
+        "message": "Placeholder (optional):"
+      },
+      {
+        "name": "inputType",
+        "message": "Input type:",
+        "type": "list",
+        "choices": [
+          "text",
+          "email",
+          "url",
+          "password"
+        ],
+        "default": "text"
+      }
+    ],
+    "select": [
+      {
+        "name": "options",
+        "message": "Options (key:Label, key:Label):",
+        "required": true,
+        "transform": "keyValuePairs"
+      }
+    ],
+    "toggle": [],
+    "cards": [
+      {
+        "name": "options",
+        "message": "Options (key:Label:Description, ...):",
+        "required": true,
+        "transform": "fancyOptions"
+      },
+      {
+        "name": "max",
+        "message": "Max selections (1 for single, empty for unlimited):",
+        "required": false
+      }
+    ],
+    "checkbox": [],
+    "checkboxes": [
+      {
+        "name": "options",
+        "message": "Options (key:Label, key:Label):",
+        "required": true,
+        "transform": "keyValuePairs"
+      }
+    ],
+    "license-key": [
+      {
+        "name": "endpoint",
+        "message": "REST API endpoint for validation:",
+        "required": true
+      },
+      {
+        "name": "placeholder",
+        "message": "Placeholder text:",
+        "default": "Enter your license key"
+      }
+    ],
+    "number": [
+      {
+        "name": "min",
+        "message": "Min value (optional):",
+        "transform": "number"
+      },
+      {
+        "name": "max",
+        "message": "Max value (optional):",
+        "transform": "number"
+      },
+      {
+        "name": "step",
+        "message": "Step value (optional):",
+        "transform": "number"
+      },
+      {
+        "name": "default",
+        "message": "Default value (optional):",
+        "transform": "number"
+      }
+    ],
+    "radio": [
+      {
+        "name": "options",
+        "message": "Options (key:Label, key:Label):",
+        "required": true,
+        "transform": "keyValuePairs"
+      }
+    ],
+    "textarea": [
+      {
+        "name": "placeholder",
+        "message": "Placeholder (optional):"
+      },
+      {
+        "name": "rows",
+        "message": "Number of rows:",
+        "type": "number",
+        "default": 4
+      }
+    ],
+    "copyable": [
+      {
+        "name": "content",
+        "message": "Content to display:",
+        "type": "input"
+      }
+    ],
+    "languages-table": [
+      {
+        "name": "endpoint",
+        "message": "REST API endpoint for validation:",
+        "required": true
+      },
+      {
+        "name": "placeholder",
+        "message": "Placeholder text:",
+        "default": "Enter your license key"
+      }
+    ],
+    "color": [
+      {
+        "name": "placeholder",
+        "message": "Placeholder (optional):"
+      },
+      {
+        "name": "inputType",
+        "message": "Input type:",
+        "type": "list",
+        "choices": [
+          "text",
+          "email",
+          "url",
+          "password"
+        ],
+        "default": "text"
+      }
+    ],
+    "range": [
+      {
+        "name": "placeholder",
+        "message": "Placeholder (optional):"
+      },
+      {
+        "name": "inputType",
+        "message": "Input type:",
+        "type": "list",
+        "choices": [
+          "text",
+          "email",
+          "url",
+          "password"
+        ],
+        "default": "text"
+      }
+    ]
+  },
+  "activePanel": "settings",
+  "fieldDefaults": {
+    "cards": {
+      "sanitize": "key"
+    },
+    "checkbox": {
+      "sanitize": "rest_sanitize_boolean"
+    },
+    "number": {
+      "sanitize": "float"
+    },
+    "radio": {
+      "sanitize": "key"
+    },
+    "textarea": {
+      "sanitize": "trim|textarea_field"
+    },
+    "text": {
+      "sanitize": "trim|text_field"
+    },
+    "select": {
+      "sanitize": "key"
+    },
+    "toggle": {
+      "sanitize": "bool"
+    },
+    "color": {
+      "sanitize": "trim|text_field"
+    },
+    "range": {
+      "sanitize": "trim|text_field"
+    }
+  },
+  "sectionSchema": {
+    "properties": {
+      "type": {
+        "const": "section"
+      },
+      "id": {
+        "type": "string"
+      },
+      "label": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "default": {
+        "type": "string",
+        "enum": [
+          "open",
+          "closed"
+        ]
+      },
+      "showSave": {
+        "type": "boolean",
+        "description": "Show save button in section (default: true)"
+      },
+      "capability": {
+        "type": "string",
+        "description": "Required capability to view/edit fields in this section"
+      }
+    },
+    "required": [
+      "type",
+      "id",
+      "label"
+    ]
+  }
+}

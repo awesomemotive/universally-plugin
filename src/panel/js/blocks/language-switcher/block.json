@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "universally/language-switcher",
+  "title": "Language Switcher",
+  "category": "widgets",
+  "icon": "translation",
+  "description": "Display a language switcher for your translated site.",
+  "keywords": ["language", "translation", "switcher", "universally"],
+  "textdomain": "universally-language-translation-multilingual-tool",
+  "editorScript": "file:./index.tsx",
+  "attributes": {
+    "showFlags": {
+      "type": "string",
+      "default": ""
+    },
+    "showNames": {
+      "type": "string",
+      "default": ""
+    },
+    "flagStyle": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "supports": {
+    "html": false,
+    "multiple": true,
+    "align": ["left", "center", "right"]
+  }
+}

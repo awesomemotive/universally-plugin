@@ -1,0 +1,217 @@
+// Make this field type span full width (both label + control columns)
+.wp-panel-section.components-panel__body > :is(.wp-panel-field.wp-panel-field--languages-table):not(.components-panel__body-title) {
+  grid-template-columns: 1fr;
+  padding: 0;
+  width: calc(100% + 32px);
+  margin-left: -16px;
+
+  .wp-panel-field__control {
+    max-width: 100%;
+  }
+
+  .wp-panel-field__description {
+    grid-column: 1;
+  }
+}
+
+.wp-panel-languages-table {
+  &__loading,
+  &__empty,
+  &__error {
+    font-size: 13px;
+    padding: 12px;
+    border-radius: 4px;
+  }
+
+  &__loading {
+    color: #666;
+  }
+
+  &__error {
+    color: #d63638;
+    background: #fcf0f1;
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px;
+    background: transparent;
+    border-radius: 4px;
+  }
+
+  &__empty-icon {
+    width: 36px;
+    height: 36px;
+    color: #b0b5b9;
+    margin-bottom: 12px;
+  }
+
+  &__empty-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e1e1e;
+  }
+
+  &__empty-desc {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #757575;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    padding: 8px var(--wp-panel-spacing, 16px);
+    border-bottom: 1px solid #f0f0f1;
+  }
+
+  &__refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #1e1e1e;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+
+    svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    &:hover:not(:disabled) {
+      background: #f6f7f7;
+      border-color: #8c8f94;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__refresh-icon--spinning {
+    animation: wp-panel-languages-table__spin 0.9s linear infinite;
+  }
+
+  @keyframes wp-panel-languages-table__spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  &__dashboard-link {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--wp-panel-primary, #0073aa);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    vertical-align: middle;
+
+    tr{
+      border-bottom: 1px solid #f0f0f1;
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    th {
+      text-align: left;
+      font-weight: 700;
+      padding: 10px var(--wp-panel-spacing, 16px);
+      color: #1e1e1e;
+      font-size: 13px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    td {
+      padding: 14px var(--wp-panel-spacing, 16px);
+      color: #50575e;
+      vertical-align: middle;
+    }
+  }
+
+  &__row--disabled {
+    opacity: 0.5;
+  }
+
+  &__lang-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #1e1e1e;
+    font-weight: 500;
+  }
+
+  &__flag {
+    width: 22px;
+    height: 16px;
+    border-radius: 2px;
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+  }
+
+  &__name {
+    font-size: 14px;
+    color: #1e1e1e;
+    text-decoration: none;
+  }
+
+  &__is-source {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 5px;
+    color: #0095a3;
+    background: #edf8fa;
+
+  }
+
+  &__code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    background: #f0f0f1;
+    color: #3c434a;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.01em;
+  }
+
+  &__status {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 10px;
+
+    &--active {
+      color: #00a32a;
+      background: #edfaef;
+    }
+
+    &--disabled {
+      color: #996800;
+      background: #fcf9e8;
+    }
+  }
+}

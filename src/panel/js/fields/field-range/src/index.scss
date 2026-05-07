@@ -1,0 +1,13 @@
+.wp-panel-field__range {
+  &__inner{
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  &__suffix {
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+}

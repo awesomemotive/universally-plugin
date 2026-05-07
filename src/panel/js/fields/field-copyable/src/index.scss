@@ -1,0 +1,38 @@
+.wp-field-copyable {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--wp-panel-border-color, #dcdcde);
+  border-radius: 4px;
+  background: var(--wp-panel-field-bg, #fff);
+
+  &__content {
+    flex: 1;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    color: var(--wp-panel-text-muted, #757575);
+    background: transparent;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  &__button {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--wp-panel-border-light, #dcdcde);
+    border-radius: 4px;
+    background: var(--wp-panel-card-bg, #fff);
+    color: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 600;
+    align-self: flex-start;
+    font-size: 12px;
+
+    &:hover {
+      border-color: var(--wp-panel-primary-hover, #444);
+      color: var(--wp-panel-primary-hover, #444);
+    }
+  }
+}

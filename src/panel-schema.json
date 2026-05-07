@@ -1,0 +1,887 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique panel identifier"
+    },
+    "title": {
+      "type": "string",
+      "description": "Panel title shown in menu"
+    },
+    "menu": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "anyOf": [
+            {
+              "enum": [
+                "toplevel",
+                "index.php",
+                "edit.php",
+                "upload.php",
+                "link-manager.php",
+                "edit.php?post_type=page",
+                "edit-comments.php",
+                "themes.php",
+                "plugins.php",
+                "users.php",
+                "tools.php",
+                "options-general.php"
+              ]
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": "options-general.php",
+          "description": "Menu location: toplevel for top-level menu, or parent menu slug for submenu (default: Settings)"
+        },
+        "icon": {
+          "type": "string",
+          "description": "Dashicons class name (for toplevel only)"
+        },
+        "position": {
+          "type": "number",
+          "description": "Menu position (for toplevel only)"
+        }
+      }
+    },
+    "schema": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "tab"
+              },
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "capability": {
+                "type": "string",
+                "description": "Required capability to view this tab and its fields"
+              },
+              "storage": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "separate"
+                ],
+                "description": "Storage mode for fields in this tab"
+              }
+            },
+            "required": [
+              "type",
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "section"
+              },
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "default": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "closed"
+                ]
+              },
+              "showSave": {
+                "type": "boolean",
+                "description": "Show save button in section (default: true)"
+              },
+              "capability": {
+                "type": "string",
+                "description": "Required capability to view/edit fields in this section"
+              }
+            },
+            "required": [
+              "type",
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "text"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "placeholder": {
+                "type": "string",
+                "description": "Placeholder text"
+              },
+              "inputType": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "email",
+                  "url",
+                  "password"
+                ],
+                "default": "text",
+                "description": "HTML input type"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "select"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "options": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Key-value pairs for select options"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label",
+              "options"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "toggle"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "cards"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "options": {
+                "type": "object",
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "label"
+                      ]
+                    }
+                  ]
+                },
+                "description": "Key-value pairs for options (value can be string or {label, description})"
+              },
+              "max": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Maximum selections. 1 = single select, omit for unlimited."
+              },
+              "columns": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3
+                ],
+                "default": 1,
+                "description": "Number of columns (1, 2, or 3). Cards stack when narrower than 250px."
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label",
+              "options"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "checkbox"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "checkboxes"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "options": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Key-value pairs for checkbox options"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label",
+              "options"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "license-key"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "endpoint": {
+                "type": "string",
+                "description": "REST API endpoint for license validation"
+              },
+              "independent": {
+                "type": "boolean",
+                "const": true,
+                "default": true,
+                "description": "Always true - field manages its own save"
+              },
+              "placeholder": {
+                "type": "string",
+                "description": "Placeholder text for input"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label",
+              "endpoint"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "number"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "min": {
+                "type": "number",
+                "description": "Minimum allowed value"
+              },
+              "max": {
+                "type": "number",
+                "description": "Maximum allowed value"
+              },
+              "step": {
+                "type": "number",
+                "description": "Increment step"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "radio"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "options": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Key-value pairs for radio options"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label",
+              "options"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "textarea"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "placeholder": {
+                "type": "string",
+                "description": "Placeholder text"
+              },
+              "rows": {
+                "type": "number",
+                "default": 4,
+                "description": "Number of visible text rows"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "copyable"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "content": {
+                "type": "string",
+                "description": "Text to display and copy"
+              },
+              "buttonText": {
+                "type": "string",
+                "description": "Button label (default: 'Copy')"
+              },
+              "copiedText": {
+                "type": "string",
+                "description": "Text shown after copying (default: 'Copied!')"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label",
+              "content"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "languages-table"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "endpoint": {
+                "type": "string",
+                "description": "REST API endpoint for license validation"
+              },
+              "independent": {
+                "type": "boolean",
+                "const": true,
+                "default": true,
+                "description": "Always true - field manages its own save"
+              },
+              "placeholder": {
+                "type": "string",
+                "description": "Placeholder text for input"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label",
+              "endpoint"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "color"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "placeholder": {
+                "type": "string",
+                "description": "Placeholder text"
+              },
+              "inputType": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "email",
+                  "url",
+                  "password"
+                ],
+                "default": "text",
+                "description": "HTML input type"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label"
+            ],
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique field identifier"
+              },
+              "type": {
+                "const": "range"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the field"
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text shown below the field"
+              },
+              "default": {
+                "description": "Default value for the field"
+              },
+              "validate": {
+                "type": "string",
+                "description": "Validation rules (e.g., required|max:100)"
+              },
+              "sanitize": {
+                "type": "string",
+                "description": "Sanitization rules (e.g., trim|text_field)"
+              },
+              "storage": {
+                "type": "string",
+                "description": "Storage mode: 'single' (default), 'separate', or a registered handler name (e.g., 'sensitive')"
+              },
+              "placeholder": {
+                "type": "string",
+                "description": "Placeholder text"
+              },
+              "inputType": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "email",
+                  "url",
+                  "password"
+                ],
+                "default": "text",
+                "description": "HTML input type"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "label"
+            ],
+            "additionalProperties": true
+          }
+        ]
+      },
+      "description": "Array of tabs and fields"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "menu",
+    "schema"
+  ]
+}
