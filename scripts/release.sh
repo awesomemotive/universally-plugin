@@ -40,9 +40,24 @@ bump_version() {
 }
 
 next_prerelease() {
-    # Args: base "1.0.1", channel "beta" or "rc"
-    local base="$1" channel="$2"
-    local last
+    # Args: channel ("beta" or "rc")
+    # If current is already a prerelease of the same channel (X.Y.Z-channel.N),
+    # increment N and keep the same base. Otherwise bump patch and start at .1
+    # (or after the highest existing tag for that base+channel).
+    local channel="$1"
+    local current base last
+    current=$(get_current_version)
+
+    if [[ "$current" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-${channel}\.([0-9]+)$ ]]; then
+        base="${BASH_REMATCH[1]}"
+        local n="${BASH_REMATCH[2]}"
+        echo "${base}-${channel}.$((n + 1))"
+        return
+    fi
+
+    local stable="${current%%-*}"
+    base=$(bump_version "$stable" "patch")
+
     last=$(git tag --list "v${base}-${channel}.*" 2>/dev/null \
         | sed -E "s/^v${base}-${channel}\\.//" \
         | sort -n | tail -n1)
@@ -165,11 +180,14 @@ main() {
 
     confirm_clean_worktree
 
-    local current_version v_patch v_minor v_major
+    local current_version stable_version v_patch v_minor v_major beta_next rc_next
     current_version=$(get_current_version)
-    v_patch=$(bump_version "$current_version" "patch")
-    v_minor=$(bump_version "$current_version" "minor")
-    v_major=$(bump_version "$current_version" "major")
+    stable_version="${current_version%%-*}"
+    v_patch=$(bump_version "$stable_version" "patch")
+    v_minor=$(bump_version "$stable_version" "minor")
+    v_major=$(bump_version "$stable_version" "major")
+    beta_next=$(next_prerelease "beta")
+    rc_next=$(next_prerelease "rc")
 
     print_message "Current version: ${current_version}" "$YELLOW"
     echo
@@ -177,8 +195,8 @@ main() {
     print_message "  1) patch   → ${v_patch}" "$NC"
     print_message "  2) minor   → ${v_minor}" "$NC"
     print_message "  3) major   → ${v_major}    (extra confirmation)" "$NC"
-    print_message "  4) beta    → next ${v_patch}-beta.N" "$NC"
-    print_message "  5) rc      → next ${v_patch}-rc.N" "$NC"
+    print_message "  4) beta    → ${beta_next}" "$NC"
+    print_message "  5) rc      → ${rc_next}" "$NC"
     print_message "  6) custom" "$NC"
     print_message "  7) rebuild current ${current_version}  (force re-release; pre-wp.org-approval only)" "$NC"
     echo
@@ -195,8 +213,8 @@ main() {
             [ "$confirm" = "major" ] || { print_message "Aborted." "$RED"; exit 1; }
             new_version="$v_major"
             ;;
-        4) new_version=$(next_prerelease "$v_patch" "beta") ;;
-        5) new_version=$(next_prerelease "$v_patch" "rc") ;;
+        4) new_version="$beta_next" ;;
+        5) new_version="$rc_next" ;;
         6)
             read -rp "Enter version: " new_version
             ;;
@@ -234,10 +252,10 @@ main() {
     if [ "$force_tag" = true ]; then
         git tag -d "v${new_version}" 2>/dev/null || true
         git push --delete origin "v${new_version}" 2>/dev/null || true
-        git tag "v${new_version}"
+        git tag -a "v${new_version}" -m "Release ${new_version}"
         git push --follow-tags
     else
-        git tag "v${new_version}"
+        git tag -a "v${new_version}" -m "Release ${new_version}"
         git push --follow-tags
     fi
 
