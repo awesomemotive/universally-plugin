@@ -487,12 +487,8 @@ final class Panel
         $input = file_get_contents('php://input');
         $data = json_decode($input, true);
 
-        // Verify nonce. wp_verify_nonce is pluggable, so sanitize input even though
-        // the value comes from a JSON body rather than $_POST.
-        if (
-            !isset($data['nonce'])
-            || !wp_verify_nonce(sanitize_text_field(wp_unslash($data['nonce'])), $this->id . '_nonce')
-        ) {
+        // Verify nonce
+        if (!isset($data['nonce']) || !wp_verify_nonce($data['nonce'], $this->id . '_nonce')) {
             wp_send_json_error(['message' => __('Invalid security token', 'universally-language-translation-multilingual-tool')], 403);
         }
 

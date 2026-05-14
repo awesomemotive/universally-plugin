@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-05-07T18:02:28+00:00\n"
+"POT-Creation-Date: 2026-05-05T17:27:24+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: universally-language-translation-multilingual-tool\n"
@@ -49,7 +49,7 @@ msgid "Upgrade"
 msgstr ""
 
 #: app/AdminBar.php:55
-#: includes/notice.php:109
+#: includes/notice.php:110
 msgid "Universally"
 msgstr ""
 
@@ -126,15 +126,15 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: includes/notice.php:110
+#: includes/notice.php:111
 msgid "is installed but not connected."
 msgstr ""
 
-#: includes/notice.php:112
+#: includes/notice.php:113
 msgid "Connect your site now"
 msgstr ""
 
-#: includes/notice.php:114
+#: includes/notice.php:115
 msgid "to start translating your content."
 msgstr ""
 
@@ -305,19 +305,19 @@ msgstr ""
 msgid "Item Hover Background"
 msgstr ""
 
-#: panel/src/Panel.php:496
+#: panel/src/Panel.php:492
 msgid "Invalid security token"
 msgstr ""
 
-#: panel/src/Panel.php:502
+#: panel/src/Panel.php:498
 msgid "Permission denied"
 msgstr ""
 
-#: panel/src/Panel.php:510
+#: panel/src/Panel.php:506
 msgid "Validation failed"
 msgstr ""
 
-#: panel/src/Panel.php:543
+#: panel/src/Panel.php:539
 msgid "Settings saved"
 msgstr ""
 

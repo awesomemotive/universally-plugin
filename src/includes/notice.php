@@ -22,13 +22,14 @@ add_action('wp_ajax_universally_dismiss_notice', 'universally_activation_notice_
  */
 function universally_activation_notice_handler(): void
 {
-    // Verify nonce first to confirm request authenticity before any privileged checks.
-    check_ajax_referer('universally_dismiss_notice', 'nonce');
-
+    // Check permission
     if (!current_user_can('manage_options')) {
         wp_send_json_error('Permission denied');
         return;
     }
+
+    // Verify nonce
+    check_ajax_referer('universally_dismiss_notice', 'nonce');
 
     // Set transient for 1 day (86400 seconds)
     set_transient('universally_notice_dismissed', true, DAY_IN_SECONDS);
