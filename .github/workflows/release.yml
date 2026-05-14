@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SLUG: universally-language-translation-multilingual-tool
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.parse.outputs.version }}
+      is_prerelease: ${{ steps.parse.outputs.is_prerelease }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Parse tag
+        id: parse
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"          # v1.2.3 or v1.2.3-beta.1
+          VERSION="${TAG#v}"
+          IS_PRE=false
+          if [[ "$VERSION" == *-* ]]; then
+            IS_PRE=true
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=$IS_PRE" >> "$GITHUB_OUTPUT"
+          echo "Tag=$TAG Version=$VERSION Prerelease=$IS_PRE"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: plugin/package-lock.json
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Build panel JS
+        working-directory: plugin
+        run: |
+          npm ci
+          npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
+
+      - name: Generate POT
+        working-directory: plugin
+        run: npm run makepot
+
+      - name: Stage production tree
+        env:
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          set -euo pipefail
+          STAGE="build/staging/${SLUG}"
+          rm -rf build && mkdir -p "$STAGE"
+
+          cp plugin/universally.php "$STAGE/"
+          cp plugin/uninstall.php   "$STAGE/"
+          cp plugin/config.php      "$STAGE/"
+          cp plugin/readme.txt      "$STAGE/"
+          cp -r plugin/app          "$STAGE/app"
+          cp -r plugin/includes     "$STAGE/includes"
+          cp -r plugin/assets       "$STAGE/assets"
+          cp -r plugin/languages    "$STAGE/languages"
+
+          mkdir -p "$STAGE/panel/build"
+          cp plugin/panel/build/index.js         "$STAGE/panel/build/"
+          cp plugin/panel/build/index.asset.php  "$STAGE/panel/build/"
+          for f in plugin/panel/build/style-index*.css; do
+            [ -f "$f" ] && cp "$f" "$STAGE/panel/build/"
+          done
+          [ -d plugin/panel/build/blocks ] && cp -r plugin/panel/build/blocks "$STAGE/panel/build/blocks"
+          cp -r plugin/panel/src "$STAGE/panel/src"
+          cp plugin/composer.json "$STAGE/"
+
+          # Version-stamp the staged file (CI never modifies source).
+          sed -i "s/\* Version:.*/* Version: ${VERSION}/" "$STAGE/universally.php"
+          sed -i "s/const UNIVERSALLY_VERSION = .*/const UNIVERSALLY_VERSION = '${VERSION}';/" "$STAGE/universally.php"
+
+          (cd "$STAGE" && composer install --no-dev --optimize-autoloader --no-interaction --quiet)
+          rm -f "$STAGE/composer.lock"
+
+          find "$STAGE" \( -name ".DS_Store" -o -name ".gitkeep" -o -name "Thumbs.db" -o -name "*.map" \) -delete || true
+
+          mkdir -p dist
+          (cd build/staging && zip -r "../../dist/${SLUG}-${VERSION}.zip" "${SLUG}" -q)
+          ls -lh "dist/${SLUG}-${VERSION}.zip"
+
+      - name: Upload staging artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-staging
+          path: |
+            build/staging/${{ env.SLUG }}
+            dist/${{ env.SLUG }}-${{ steps.parse.outputs.version }}.zip
+          retention-days: 7
+
+  deploy-svn:
+    needs: build
+    if: needs.build.outputs.is_prerelease == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download staging artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: plugin-staging
+
+      - name: Deploy to wp.org SVN
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SLUG: universally-language-translation-multilingual-tool
+          BUILD_DIR: build/staging/universally-language-translation-multilingual-tool
+          ASSETS_DIR: assets
+          VERSION: ${{ needs.build.outputs.version }}
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+
+  gh-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download staging artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: plugin-staging
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ needs.build.outputs.version }}
+          tag_name: v${{ needs.build.outputs.version }}
+          prerelease: ${{ needs.build.outputs.is_prerelease == 'true' }}
+          files: dist/${{ env.SLUG }}-${{ needs.build.outputs.version }}.zip
