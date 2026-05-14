@@ -93,9 +93,9 @@ All other JS dependencies (React, `@wordpress/*`) are externalized at build time
 
 ## Links
 
-- Service: [universally.com](https://universally.com/)
-- Pricing: [universally.com/pricing](https://universally.com/pricing/)
-- Docs: [universally.com/docs](https://universally.com/docs/)
+- Service: [universally.com](https://universally.com/?utm_source=github&utm_medium=link&utm_campaign=plugin_repo_readme)
+- Pricing: [universally.com/pricing](https://universally.com/pricing/?utm_source=github&utm_medium=link&utm_campaign=plugin_repo_readme)
+- Docs: [universally.com/docs](https://universally.com/docs/?utm_source=github&utm_medium=link&utm_campaign=plugin_repo_readme)
 - WordPress.org: [universally-language-translation-multilingual-tool](https://wordpress.org/plugins/universally-language-translation-multilingual-tool/)
 
 ## License
