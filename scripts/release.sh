@@ -28,9 +28,18 @@ get_current_version() {
 
 bump_version() {
     local version="$1" type="$2" major minor patch
-    major=$(echo "$version" | cut -d. -f1)
-    minor=$(echo "$version" | cut -d. -f2)
-    patch=$(echo "$version" | cut -d. -f3 | cut -d- -f1)
+    local stable="${version%%-*}"
+    major=$(echo "$stable" | cut -d. -f1)
+    minor=$(echo "$stable" | cut -d. -f2)
+    patch=$(echo "$stable" | cut -d. -f3)
+
+    # If current is a prerelease and we're picking "patch", promote to the
+    # stable form (no increment) — the prerelease was preparing for this X.Y.Z.
+    if [ "$stable" != "$version" ] && [ "$type" = "patch" ]; then
+        echo "$stable"
+        return
+    fi
+
     case "$type" in
         patch) patch=$((patch + 1)) ;;
         minor) minor=$((minor + 1)); patch=0 ;;
@@ -82,6 +91,18 @@ update_version_in_file() {
     else
         sed -i "s/\* Version:.*/* Version: ${new_version}/" "$plugin_file"
         sed -i "s/const UNIVERSALLY_VERSION = .*/const UNIVERSALLY_VERSION = '${new_version}';/" "$plugin_file"
+    fi
+}
+
+# Update wp.org readme's "Stable tag:" header. Only call for stable releases —
+# wp.org's "Stable tag" must point to the latest released stable version,
+# never a beta/rc.
+update_readme_stable_tag() {
+    local new_version="$1" readme_file="$2"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/^Stable tag:.*/Stable tag: ${new_version}/" "$readme_file"
+    else
+        sed -i "s/^Stable tag:.*/Stable tag: ${new_version}/" "$readme_file"
     fi
 }
 
@@ -183,12 +204,11 @@ main() {
 
     confirm_clean_worktree
 
-    local current_version stable_version v_patch v_minor v_major beta_next rc_next
+    local current_version v_patch v_minor v_major beta_next rc_next
     current_version=$(get_current_version)
-    stable_version="${current_version%%-*}"
-    v_patch=$(bump_version "$stable_version" "patch")
-    v_minor=$(bump_version "$stable_version" "minor")
-    v_major=$(bump_version "$stable_version" "major")
+    v_patch=$(bump_version "$current_version" "patch")
+    v_minor=$(bump_version "$current_version" "minor")
+    v_major=$(bump_version "$current_version" "major")
     beta_next=$(next_prerelease "beta")
     rc_next=$(next_prerelease "rc")
 
@@ -239,9 +259,17 @@ main() {
     echo
     print_message "Releasing v${new_version}..." "$GREEN"
 
+    local is_stable=false
+    if [[ ! "$new_version" =~ - ]]; then
+        is_stable=true
+    fi
+
     if [ "$force_tag" = false ]; then
         update_version_in_file "$new_version" "${PLUGIN_DIR}/universally.php"
         update_pkg_version "$new_version" "${PLUGIN_DIR}/package.json"
+        if [ "$is_stable" = true ]; then
+            update_readme_stable_tag "$new_version" "${PLUGIN_DIR}/readme.txt"
+        fi
     fi
 
     stage_production_tree "$new_version"
@@ -249,6 +277,9 @@ main() {
 
     if [ "$force_tag" = false ]; then
         git add "${PLUGIN_DIR}/universally.php" "${PLUGIN_DIR}/package.json"
+        if [ "$is_stable" = true ]; then
+            git add "${PLUGIN_DIR}/readme.txt"
+        fi
         git commit -m "Release ${new_version}"
     fi
 
