@@ -134,10 +134,29 @@ jobs:
         with:
           name: plugin-staging
 
+      - name: Compose release body with Playground link
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          ZIP_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${SLUG}-${VERSION}.zip"
+          BLUEPRINT="{\"landingPage\":\"/wp-admin/plugins.php\",\"login\":true,\"steps\":[{\"step\":\"installPlugin\",\"pluginData\":{\"resource\":\"url\",\"url\":\"${ZIP_URL}\"}}]}"
+          ENCODED=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$BLUEPRINT")
+          PLAYGROUND_URL="https://playground.wordpress.net/?php=8.0#${ENCODED}"
+          {
+            echo "## Try this build"
+            echo ""
+            echo "[**Open in WordPress Playground**](${PLAYGROUND_URL}) — boots WordPress in your browser, installs and activates this build. No setup needed."
+            echo ""
+            echo "Or download the zip below and install manually via *Plugins → Add New → Upload Plugin*."
+          } > release-body.md
+          cat release-body.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: v${{ needs.build.outputs.version }}
           tag_name: v${{ needs.build.outputs.version }}
           prerelease: ${{ needs.build.outputs.is_prerelease == 'true' }}
+          body_path: release-body.md
           files: dist/${{ env.SLUG }}-${{ needs.build.outputs.version }}.zip
