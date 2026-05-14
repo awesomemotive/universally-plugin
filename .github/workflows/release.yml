@@ -143,13 +143,7 @@ jobs:
           BLUEPRINT="{\"landingPage\":\"/wp-admin/plugins.php\",\"login\":true,\"steps\":[{\"step\":\"installPlugin\",\"pluginData\":{\"resource\":\"url\",\"url\":\"${ZIP_URL}\"}}]}"
           ENCODED=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$BLUEPRINT")
           PLAYGROUND_URL="https://playground.wordpress.net/?php=8.0#${ENCODED}"
-          {
-            echo "## Try this build"
-            echo ""
-            echo "[**Open in WordPress Playground**](${PLAYGROUND_URL}) — boots WordPress in your browser, installs and activates this build. No setup needed."
-            echo ""
-            echo "Or download the zip below and install manually via *Plugins → Add New → Upload Plugin*."
-          } > release-body.md
+          echo "[Try in WordPress Playground](${PLAYGROUND_URL})" > release-body.md
           cat release-body.md
 
       - name: Create GitHub Release
