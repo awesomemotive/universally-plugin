@@ -117,9 +117,6 @@ stage_production_tree() {
         (cd "${PLUGIN_DIR}" && npm ci && npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build)
     fi
 
-    print_message "Generating .pot file..." "$YELLOW"
-    (cd "${PLUGIN_DIR}" && npm run --silent makepot)
-
     print_message "Copying production files..." "$YELLOW"
     cp "${PLUGIN_DIR}/universally.php" "${stage}/${PLUGIN_NAME}/"
     cp "${PLUGIN_DIR}/uninstall.php"   "${stage}/${PLUGIN_NAME}/"
