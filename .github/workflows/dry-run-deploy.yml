@@ -1,0 +1,101 @@
+name: Dry-run wp.org Deploy
+
+# Manually-triggered. Builds the production tree exactly as Release does,
+# then runs 10up's action with DRY_RUN=true — validates auth, readme,
+# file layout, and the SVN diff that *would* be committed. Nothing is
+# committed to wp.org.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to dry-deploy (e.g., 1.0.1)'
+        required: true
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SLUG: universally-language-translation-multilingual-tool
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: plugin/package-lock.json
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer
+
+      - name: Build panel JS
+        working-directory: plugin
+        run: |
+          npm ci
+          npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
+
+      - name: Generate POT
+        working-directory: plugin
+        run: npm run makepot
+
+      - name: Stage production tree
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          STAGE="build/staging/${SLUG}"
+          rm -rf build && mkdir -p "$STAGE"
+
+          cp plugin/universally.php "$STAGE/"
+          cp plugin/uninstall.php   "$STAGE/"
+          cp plugin/config.php      "$STAGE/"
+          cp plugin/readme.txt      "$STAGE/"
+          cp -r plugin/app          "$STAGE/app"
+          cp -r plugin/includes     "$STAGE/includes"
+          cp -r plugin/assets       "$STAGE/assets"
+          cp -r plugin/languages    "$STAGE/languages"
+
+          mkdir -p "$STAGE/panel/build"
+          cp plugin/panel/build/index.js         "$STAGE/panel/build/"
+          cp plugin/panel/build/index.asset.php  "$STAGE/panel/build/"
+          for f in plugin/panel/build/style-index*.css; do
+            [ -f "$f" ] && cp "$f" "$STAGE/panel/build/"
+          done
+          [ -d plugin/panel/build/blocks ] && cp -r plugin/panel/build/blocks "$STAGE/panel/build/blocks"
+          cp -r plugin/panel/src "$STAGE/panel/src"
+          cp plugin/composer.json "$STAGE/"
+
+          sed -i "s/\* Version:.*/* Version: ${VERSION}/" "$STAGE/universally.php"
+          sed -i "s/const UNIVERSALLY_VERSION = .*/const UNIVERSALLY_VERSION = '${VERSION}';/" "$STAGE/universally.php"
+          sed -i "s/^Stable tag:.*/Stable tag: ${VERSION}/" "$STAGE/readme.txt"
+
+          (cd "$STAGE" && composer install --no-dev --optimize-autoloader --no-interaction --quiet)
+          rm -f "$STAGE/composer.lock"
+
+          find "$STAGE" \( -name ".DS_Store" -o -name ".gitkeep" -o -name "Thumbs.db" -o -name "*.map" \) -delete || true
+
+          echo "=== Staged file tree ==="
+          find "$STAGE" -type f | sort
+          echo
+          echo "=== readme.txt header ==="
+          head -15 "$STAGE/readme.txt"
+          echo
+          echo "=== universally.php header ==="
+          head -20 "$STAGE/universally.php"
+
+      - name: Dry-run wp.org SVN deploy
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          DRY_RUN: true
+          SLUG: universally-language-translation-multilingual-tool
+          BUILD_DIR: build/staging/universally-language-translation-multilingual-tool
+          ASSETS_DIR: assets
+          VERSION: ${{ inputs.version }}
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}

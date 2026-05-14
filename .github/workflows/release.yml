@@ -79,9 +79,13 @@ jobs:
           cp -r plugin/panel/src "$STAGE/panel/src"
           cp plugin/composer.json "$STAGE/"
 
-          # Version-stamp the staged file (CI never modifies source).
+          # Version-stamp the staged files (CI never modifies source).
           sed -i "s/\* Version:.*/* Version: ${VERSION}/" "$STAGE/universally.php"
           sed -i "s/const UNIVERSALLY_VERSION = .*/const UNIVERSALLY_VERSION = '${VERSION}';/" "$STAGE/universally.php"
+          # Only patch Stable tag for stable releases (no '-' in VERSION).
+          if [[ "${VERSION}" != *-* ]]; then
+            sed -i "s/^Stable tag:.*/Stable tag: ${VERSION}/" "$STAGE/readme.txt"
+          fi
 
           (cd "$STAGE" && composer install --no-dev --optimize-autoloader --no-interaction --quiet)
           rm -f "$STAGE/composer.lock"
