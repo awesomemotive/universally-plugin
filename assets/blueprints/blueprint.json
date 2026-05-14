@@ -1,0 +1,23 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "meta": {
+    "title": "Universally — AI Translation",
+    "description": "Translate your WordPress site into 110+ languages with AI. Use your own API key from universally.com to enable translations.",
+    "categories": ["Translation"]
+  },
+  "landingPage": "/wp-admin/admin.php?page=universally_settings",
+  "preferredVersions": {
+    "php": "8.0",
+    "wp": "latest"
+  },
+  "login": true,
+  "steps": [
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "universally-language-translation-multilingual-tool"
+      }
+    }
+  ]
+}
