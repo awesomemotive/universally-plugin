@@ -30,7 +30,7 @@ function universally_config($key = null)
 
         // if key includes a dot then these are the nested keys, and we need to return the value of the nested key
         // but must fail gracefully if the nested key does not exist
-        if (str_contains($key, '.')) {
+        if (strpos($key, '.') !== false) {
             $keys = explode('.', $key);
             return array_reduce($keys, static function ($value, $nestedKey) {
                 return $value[$nestedKey] ?? null;

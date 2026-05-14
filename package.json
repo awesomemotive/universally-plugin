@@ -1,0 +1,10 @@
+{
+  "name": "universally-plugin-release",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Release tooling for the Universally WordPress plugin. Plugin source lives in plugin/.",
+  "scripts": {
+    "release": "bash scripts/release.sh",
+    "build": "cd plugin && npm ci && npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build"
+  }
+}

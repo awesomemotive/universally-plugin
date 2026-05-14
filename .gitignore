@@ -43,6 +43,8 @@ node_modules/
 vendor/
 
 # Build artifacts
-src/panel/build/
+plugin/panel/build/
+plugin/node_modules/
+plugin/vendor/
 dist/
 build/
