@@ -56,7 +56,13 @@ next_prerelease() {
     fi
 
     local stable="${current%%-*}"
-    base=$(bump_version "$stable" "patch")
+    # If the stable vX.Y.Z tag does NOT exist yet, the prerelease targets that
+    # same X.Y.Z (it's still unshipped). Otherwise, target the next patch.
+    if git rev-parse -q --verify "refs/tags/v${stable}" >/dev/null 2>&1; then
+        base=$(bump_version "$stable" "patch")
+    else
+        base="$stable"
+    fi
 
     last=$(git tag --list "v${base}-${channel}.*" 2>/dev/null \
         | sed -E "s/^v${base}-${channel}\\.//" \
