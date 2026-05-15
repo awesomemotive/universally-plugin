@@ -197,7 +197,10 @@ function universally_get_switcher_urls(): array
     }
 
     $currentLang = universally_get_current_lang();
-    $currentUrl = sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'] ?? '/'));
+    // sanitize_text_field strips every %XX byte, which destroys emoji and non-Latin
+    // slugs (e.g. /post-with-🎉/, /অ/). Keep the URL raw — esc_url is applied later
+    // when each language URL is rendered into HTML attributes.
+    $currentUrl = wp_unslash($_SERVER['REQUEST_URI'] ?? '/');
     $homeUrl = home_url();
 
     // Collect valid language prefixes for stripping

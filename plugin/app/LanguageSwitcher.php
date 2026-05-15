@@ -233,7 +233,7 @@ class LanguageSwitcher
             return false;
         }
 
-        $currentPath = wp_parse_url(sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'] ?? '/')), PHP_URL_PATH);
+        $currentPath = wp_parse_url(wp_unslash($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
         $currentPath = rtrim($currentPath ?? '/', '/');
 
         // Strip language prefix if present (e.g. /fr/checkout -> /checkout)
