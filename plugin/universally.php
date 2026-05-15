@@ -15,6 +15,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
+use Universally\ActivationToken;
 use Universally\AdminBar;
 use Universally\LanguageSwitcher;
 use Universally\Migration;
@@ -76,3 +77,4 @@ new UnifiedBuffer();
 new LanguageSwitcher();
 new AdminBar();
 new RestApi();
+new ActivationToken();
