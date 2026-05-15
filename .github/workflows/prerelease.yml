@@ -1,0 +1,134 @@
+name: Prerelease (manual test build)
+
+# Manually dispatched workflow for producing a test zip from any branch.
+# Builds the plugin the same way release.yml does, creates a GitHub Release
+# marked as prerelease with the zip + a Playground link, and SKIPS wp.org SVN.
+# Useful for handing out a downloadable build of a feature branch before merge.
+
+on:
+  workflow_dispatch:
+    inputs:
+      suffix:
+        description: 'Suffix appended to the base version. Tag becomes vX.Y.Z-<suffix>.<run_number>.'
+        required: false
+        default: 'dev'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SLUG: universally-language-translation-multilingual-tool
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compute version
+        id: version
+        run: |
+          set -euo pipefail
+          BASE=$(node -p "require('./plugin/package.json').version")
+          RAW_SUFFIX="${{ inputs.suffix }}"
+          # Allow only [A-Za-z0-9.-]; everything else becomes a hyphen.
+          SAFE_SUFFIX=$(printf '%s' "$RAW_SUFFIX" | tr -c 'A-Za-z0-9.-' '-')
+          # Strip any leading/trailing hyphens.
+          SAFE_SUFFIX="${SAFE_SUFFIX#-}"
+          SAFE_SUFFIX="${SAFE_SUFFIX%-}"
+          if [ -z "$SAFE_SUFFIX" ]; then
+            SAFE_SUFFIX="dev"
+          fi
+          VERSION="${BASE}-${SAFE_SUFFIX}.${{ github.run_number }}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building prerelease v${VERSION} from ${{ github.ref_name }} @ ${GITHUB_SHA::7}"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: plugin/package-lock.json
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer
+
+      - name: Build panel JS
+        working-directory: plugin
+        run: |
+          npm ci
+          npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
+
+      - name: Generate POT
+        working-directory: plugin
+        run: npm run makepot
+
+      - name: Stage production tree
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          STAGE="build/staging/${SLUG}"
+          rm -rf build && mkdir -p "$STAGE"
+
+          cp plugin/universally.php "$STAGE/"
+          cp plugin/uninstall.php   "$STAGE/"
+          cp plugin/config.php      "$STAGE/"
+          cp plugin/readme.txt      "$STAGE/"
+          cp -r plugin/app          "$STAGE/app"
+          cp -r plugin/includes     "$STAGE/includes"
+          cp -r plugin/assets       "$STAGE/assets"
+          cp -r plugin/languages    "$STAGE/languages"
+
+          mkdir -p "$STAGE/panel/build"
+          cp plugin/panel/build/index.js         "$STAGE/panel/build/"
+          cp plugin/panel/build/index.asset.php  "$STAGE/panel/build/"
+          for f in plugin/panel/build/style-index*.css; do
+            [ -f "$f" ] && cp "$f" "$STAGE/panel/build/"
+          done
+          [ -d plugin/panel/build/blocks ] && cp -r plugin/panel/build/blocks "$STAGE/panel/build/blocks"
+          cp -r plugin/panel/src "$STAGE/panel/src"
+          cp plugin/composer.json "$STAGE/"
+
+          # Stamp the version into the staged files (CI never modifies source).
+          # Prereleases never touch Stable tag — that's reserved for stable releases.
+          sed -i "s/\* Version:.*/* Version: ${VERSION}/" "$STAGE/universally.php"
+          sed -i "s/const UNIVERSALLY_VERSION = .*/const UNIVERSALLY_VERSION = '${VERSION}';/" "$STAGE/universally.php"
+
+          (cd "$STAGE" && composer install --no-dev --optimize-autoloader --no-interaction --quiet)
+          rm -f "$STAGE/composer.lock"
+
+          find "$STAGE" \( -name ".DS_Store" -o -name ".gitkeep" -o -name "Thumbs.db" -o -name "*.map" \) -delete || true
+
+          mkdir -p dist
+          (cd build/staging && zip -r "../../dist/${SLUG}-${VERSION}.zip" "${SLUG}" -q)
+          ls -lh "dist/${SLUG}-${VERSION}.zip"
+
+      - name: Compose release body with Playground link
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ZIP_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${SLUG}-${VERSION}.zip"
+          BLUEPRINT="{\"landingPage\":\"/wp-admin/plugins.php\",\"login\":true,\"steps\":[{\"step\":\"installPlugin\",\"pluginData\":{\"resource\":\"url\",\"url\":\"${ZIP_URL}\"}}]}"
+          ENCODED=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$BLUEPRINT")
+          PLAYGROUND_URL="https://playground.wordpress.net/?php=8.0#${ENCODED}"
+          {
+            echo "**Manual prerelease build — for testing only.** Not pushed to wp.org."
+            echo
+            echo "Built from \`${{ github.ref_name }}\` @ \`${GITHUB_SHA::7}\`."
+            echo
+            echo "[Try in WordPress Playground](${PLAYGROUND_URL})"
+          } > release-body.md
+          cat release-body.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          body_path: release-body.md
+          files: dist/${{ env.SLUG }}-${{ steps.version.outputs.version }}.zip
