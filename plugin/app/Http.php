@@ -69,7 +69,10 @@ class Http
             'timeout'   => $this->timeout,
             'sslverify' => true,
             'headers'   => array_merge(
-                ['Content-Type' => 'application/json'],
+                [
+                    'Content-Type' => 'application/json',
+                    'User-Agent'   => self::userAgent(),
+                ],
                 $headers
             ),
         ];
@@ -123,5 +126,21 @@ class Http
         }
 
         return $data;
+    }
+
+    /**
+     * Build the User-Agent string sent with every outbound request.
+     * Format: `Universally-WP/<plugin> (WordPress/<wp>; PHP/<php>; <site-url>)`.
+     */
+    private static function userAgent(): string
+    {
+        global $wp_version;
+        return sprintf(
+            'Universally-WP/%s (WordPress/%s; PHP/%s; %s)',
+            defined('UNIVERSALLY_VERSION') ? UNIVERSALLY_VERSION : 'unknown',
+            is_string($wp_version) && $wp_version !== '' ? $wp_version : 'unknown',
+            PHP_VERSION,
+            home_url('/')
+        );
     }
 }
