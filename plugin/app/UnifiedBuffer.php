@@ -91,11 +91,17 @@ class UnifiedBuffer
      */
     private function detectLanguage()
     {
-        $requestUri = isset($_SERVER['REQUEST_URI']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'])) : '/';
+        $requestUri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '/';
         $parsedUri = wp_parse_url($requestUri);
-        $path = $parsedUri['path'] ?? '/';
+        $rawPath = $parsedUri['path'] ?? '/';
 
-        if (!preg_match('/^\/([a-z0-9-]{2,6})(\/.*)?$/i', $path, $matches)) {
+        // Match the language prefix on a decoded copy of the path so that a percent-encoded
+        // first segment (e.g. an emoji or non-Latin slug like /bn/অ/) doesn't accidentally
+        // match the [a-z0-9-]{2,6} prefix pattern. Keep the original $rawPath for $pathAfterPrefix
+        // so emoji/non-Latin slugs survive intact when written back to $_SERVER['REQUEST_URI'].
+        $decodedPath = rawurldecode($rawPath);
+
+        if (!preg_match('/^\/([a-z0-9-]{2,6})(\/.*)?$/i', $decodedPath, $matches)) {
             return false;
         }
 
@@ -106,7 +112,10 @@ class UnifiedBuffer
             return false;
         }
 
-        $pathAfterPrefix = !empty($matches[2]) ? $matches[2] : null;
+        // Strip the (ASCII) /{langCode} prefix off the raw path so percent-encoded
+        // characters in the remaining slug are preserved verbatim for WP's router.
+        $rawAfterPrefix = substr($rawPath, strlen('/' . $matches[1]));
+        $pathAfterPrefix = $rawAfterPrefix !== '' ? $rawAfterPrefix : null;
 
         return [$langCode, $targetLocale, $pathAfterPrefix];
     }
@@ -115,9 +124,11 @@ class UnifiedBuffer
     {
         $redirectUrl = '/' . $langCode . '/';
         if (!empty($_SERVER['QUERY_STRING'])) {
-            $redirectUrl .= '?' . sanitize_text_field(wp_unslash($_SERVER['QUERY_STRING']));
+            // Don't run the query string through sanitize_text_field — it strips every
+            // %XX byte, which destroys emoji and non-Latin characters.
+            $redirectUrl .= '?' . wp_unslash($_SERVER['QUERY_STRING']);
         }
-        wp_safe_redirect(home_url($redirectUrl), 301);
+        wp_safe_redirect(esc_url_raw(home_url($redirectUrl)), 301);
         exit;
     }
 
@@ -125,7 +136,7 @@ class UnifiedBuffer
     {
         $newRequestUri = $pathAfterPrefix;
         if (!empty($_SERVER['QUERY_STRING'])) {
-            $newRequestUri .= '?' . sanitize_text_field(wp_unslash($_SERVER['QUERY_STRING']));
+            $newRequestUri .= '?' . wp_unslash($_SERVER['QUERY_STRING']);
         }
         $_SERVER['REQUEST_URI'] = $newRequestUri;
     }
@@ -176,7 +187,7 @@ class UnifiedBuffer
         }
 
         $targetLanguage = UNIVERSALLY_CURRENT_LOCALE;
-        $sourceUrl = is_404() ? home_url('/404') : home_url(sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'] ?? '/')));
+        $sourceUrl = is_404() ? home_url('/404') : esc_url_raw(home_url(wp_unslash($_SERVER['REQUEST_URI'] ?? '/')));
 
         try {
             $response = $this->translate($buffer, $targetLanguage, $sourceUrl);
