@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Prerelease semver (e.g. 1.0.3-beta.1). Must contain a hyphen — manual dispatch is for prereleases only; stable cuts go through `npm run release`.'
+        required: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -18,18 +23,35 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Parse tag
+      - name: Resolve version
         id: parse
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"          # v1.2.3 or v1.2.3-beta.1
-          VERSION="${TAG#v}"
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+            # Strip a leading 'v' if the dispatcher included it.
+            VERSION="${VERSION#v}"
+            # Refuse stable versions on dispatch — those must come from `npm run release`
+            # so the version-bump commit lands in source history.
+            if [[ "$VERSION" != *-* ]]; then
+              echo "::error::Manual dispatch is for prereleases only. Got '${VERSION}' (no '-' suffix). Cut stable releases with \`npm run release\`."
+              exit 1
+            fi
+          else
+            TAG="${GITHUB_REF#refs/tags/}"        # v1.2.3 or v1.2.3-beta.1
+            VERSION="${TAG#v}"
+          fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "::error::Invalid semver: '${VERSION}'"
+            exit 1
+          fi
           IS_PRE=false
           if [[ "$VERSION" == *-* ]]; then
             IS_PRE=true
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "is_prerelease=$IS_PRE" >> "$GITHUB_OUTPUT"
-          echo "Tag=$TAG Version=$VERSION Prerelease=$IS_PRE"
+          echo "Event=${{ github.event_name }} Version=$VERSION Prerelease=$IS_PRE"
 
       - uses: actions/setup-node@v5
         with:
@@ -155,6 +177,9 @@ jobs:
         with:
           name: v${{ needs.build.outputs.version }}
           tag_name: v${{ needs.build.outputs.version }}
+          # For tag-push runs the tag already exists; for workflow_dispatch the
+          # action creates it pointing at the workflow's commit.
+          target_commitish: ${{ github.sha }}
           prerelease: ${{ needs.build.outputs.is_prerelease == 'true' }}
           body_path: release-body.md
           files: dist/${{ env.SLUG }}-${{ needs.build.outputs.version }}.zip
