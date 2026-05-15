@@ -48,3 +48,7 @@ plugin/node_modules/
 plugin/vendor/
 dist/
 build/
+
+.qwp
+docs/
+CLAUDE.md
