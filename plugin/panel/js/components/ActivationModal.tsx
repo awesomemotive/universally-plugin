@@ -28,8 +28,9 @@ type Phase = 'verifying' | 'confirm' | 'connecting' | 'success' | 'error';
 
 // How long the success state is shown before handing off to onActivated.
 // Gives the user visual confirmation of which workspace they connected to,
-// without parking them on the confirmation indefinitely.
-const SUCCESS_HOLD_MS = 1500;
+// without parking them on the confirmation indefinitely. A countdown is
+// rendered so the user sees the wait is intentional.
+const SUCCESS_HOLD_SECONDS = 5;
 
 interface Props {
   token: string;
@@ -44,8 +45,33 @@ export function ActivationModal({ token, onClose, onActivated }: Props) {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [displayInfo, setDisplayInfo] = useState<DisplayInfo>({});
   const [alreadyConnected, setAlreadyConnected] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(SUCCESS_HOLD_SECONDS);
   const exchangeIdRef = useRef<string | null>(null);
   const exchangeStartedRef = useRef(false);
+
+  // Hold the latest onActivated in a ref so the success-phase effect doesn't
+  // re-run whenever the parent re-renders and passes a fresh callback.
+  const onActivatedRef = useRef(onActivated);
+  useEffect(() => {
+    onActivatedRef.current = onActivated;
+  }, [onActivated]);
+
+  // Drive the success countdown and the final handoff. One effect, one cleanup —
+  // covers React 18 StrictMode's double-invocation and any mid-flight unmount.
+  useEffect(() => {
+    if (phase !== 'success') return;
+    setSecondsLeft(SUCCESS_HOLD_SECONDS);
+    const interval = window.setInterval(() => {
+      setSecondsLeft((s) => Math.max(0, s - 1));
+    }, 1000);
+    const timeout = window.setTimeout(() => {
+      onActivatedRef.current();
+    }, SUCCESS_HOLD_SECONDS * 1000);
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [phase]);
 
   // Exchange runs exactly once on mount. The token is single-use — calling twice
   // would burn a second token (well, the API would just return ACTIVATION_TOKEN_USED).
@@ -102,7 +128,6 @@ export function ActivationModal({ token, onClose, onActivated }: Props) {
       // exchange already populated it, but the API may refine it).
       if (res.displayInfo) setDisplayInfo((prev) => ({ ...prev, ...res.displayInfo }));
       setPhase('success');
-      window.setTimeout(onActivated, SUCCESS_HOLD_MS);
     } catch (err) {
       setErrorMessage(COMMIT_ERROR);
       setPhase('error');
@@ -189,11 +214,34 @@ export function ActivationModal({ token, onClose, onActivated }: Props) {
       )}
 
       {phase === 'success' && (
-        <Notice status="success" isDismissible={false}>
-          {displayInfo.workspaceName
-            ? `Connected to ${displayInfo.workspaceName}.`
-            : 'Connected to Universally.'}
-        </Notice>
+        <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
+          <div
+            aria-hidden="true"
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              backgroundColor: '#00a32a',
+              color: '#fff',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 28,
+              lineHeight: 1,
+              margin: '0 auto 14px',
+            }}
+          >
+            ✓
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 500 }}>
+            {displayInfo.workspaceName
+              ? `Connected to ${displayInfo.workspaceName}.`
+              : 'Connected to Universally.'}
+          </div>
+          <div style={{ marginTop: 8, fontSize: 13, opacity: 0.7 }}>
+            Closing in {secondsLeft}s…
+          </div>
+        </div>
       )}
 
       {phase === 'error' && (
