@@ -72,6 +72,14 @@ CI (`.github/workflows/release.yml`) picks up the tag push:
 
 Required repo secrets: `SVN_USERNAME` and `SVN_PASSWORD` (wp.org account credentials).
 
+### Manual prerelease (no local commit)
+
+To produce a downloadable test zip from a feature branch without adding a "Release …" commit to its history, dispatch the **Release** workflow from the Actions tab:
+
+- Actions → **Release** → **Run workflow** → pick the branch → enter a version like `1.0.3-beta.1` (must include a `-` suffix; stable cuts are rejected on dispatch).
+
+CI tags the workflow's commit as `vX.Y.Z-...`, builds, and publishes a GitHub Release (marked pre-release) with the zip + Playground link. Skips SVN.
+
 ## Translations
 
 POT regeneration is normally done in CI during the build. To regenerate locally (Docker required):
