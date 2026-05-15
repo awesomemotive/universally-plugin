@@ -49,6 +49,9 @@ function App({ panelData }: { panelData: PanelDataWithOnboarding }) {
           token={activationToken}
           onClose={() => setActivationToken(null)}
           onActivated={() => {
+            // Notify the opener (the Universally dashboard popup-opened this tab)
+            // so it can refresh its "site connected" state without polling.
+            window.opener?.postMessage({ type: 'universally-activated' }, '*');
             // Try to close the tab the dashboard popped open. Browsers only honor
             // window.close() for script-opened windows, so if the user landed here
             // via normal navigation it's silently ignored — fall back to a full
