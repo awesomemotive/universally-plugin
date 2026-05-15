@@ -246,7 +246,7 @@ You can reach our support team through the [Universally dashboard](https://app.u
 == Changelog ==
 
 = 1.0.3 =
-* New: one-click activation from the Universally dashboard. Connect your site without copying and pasting your API key manually.
+* New: one-click activation from the Universally dashboard. Confirm the workspace you're connecting to and the plugin saves your API key automatically — no manual paste.
 
 = 1.0.2 =
 * Fix: emoji and non-Latin characters (e.g. Bengali, Arabic, Chinese) are now preserved in URLs. Translated pages with non-Latin source slugs no longer return 404, and language switcher / hreflang links keep emojis intact.
@@ -260,7 +260,7 @@ You can reach our support team through the [Universally dashboard](https://app.u
 == Upgrade Notice ==
 
 = 1.0.3 =
-Adds one-click activation from the Universally dashboard, removing the need to paste an API key manually.
+Adds one-click activation from the Universally dashboard with a workspace confirmation step. No more manual API key paste.
 
 = 1.0.2 =
 Fixes a bug that stripped emoji and non-Latin characters from URLs, which caused 404s on translated pages with non-Latin slugs.
