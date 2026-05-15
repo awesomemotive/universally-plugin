@@ -72,10 +72,6 @@ CI (`.github/workflows/release.yml`) picks up the tag push:
 
 Required repo secrets: `SVN_USERNAME` and `SVN_PASSWORD` (wp.org account credentials).
 
-### Manual test build (no local tag)
-
-To hand someone a downloadable test zip of a feature branch without going through the local release script, dispatch the **Prerelease (manual test build)** workflow from the Actions tab. Pick the branch, optionally set a `suffix` (default `dev`), and run. The workflow builds the plugin, tags the build as `vX.Y.Z-<suffix>.<run_number>`, and publishes a GitHub Release (marked pre-release) with the zip + a Playground link. It does not touch wp.org SVN.
-
 ## Translations
 
 POT regeneration is normally done in CI during the build. To regenerate locally (Docker required):
