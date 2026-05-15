@@ -185,7 +185,7 @@ export function ActivationModal({ token, onClose, onActivated }: Props) {
             {errorMessage}
           </Notice>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-            <Button variant="primary" onClick={onClose}>
+            <Button variant="primary" onClick={handleCancel}>
               Dismiss
             </Button>
           </div>
