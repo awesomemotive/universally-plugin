@@ -30,7 +30,7 @@ type Phase = 'verifying' | 'confirm' | 'connecting' | 'success' | 'error';
 // Gives the user visual confirmation of which workspace they connected to,
 // without parking them on the confirmation indefinitely. A countdown is
 // rendered so the user sees the wait is intentional.
-const SUCCESS_HOLD_SECONDS = 5;
+const SUCCESS_HOLD_SECONDS = 3;
 
 interface Props {
   token: string;
