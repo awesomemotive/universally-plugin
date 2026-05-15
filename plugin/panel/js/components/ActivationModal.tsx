@@ -24,7 +24,12 @@ interface CommitResponse {
   displayInfo?: DisplayInfo;
 }
 
-type Phase = 'verifying' | 'confirm' | 'connecting' | 'error';
+type Phase = 'verifying' | 'confirm' | 'connecting' | 'success' | 'error';
+
+// How long the success state is shown before handing off to onActivated.
+// Gives the user visual confirmation of which workspace they connected to,
+// without parking them on the confirmation indefinitely.
+const SUCCESS_HOLD_MS = 1500;
 
 interface Props {
   token: string;
@@ -93,7 +98,11 @@ export function ActivationModal({ token, onClose, onActivated }: Props) {
         return;
       }
 
-      onActivated();
+      // Merge any displayInfo the commit response returned (defensive — the
+      // exchange already populated it, but the API may refine it).
+      if (res.displayInfo) setDisplayInfo((prev) => ({ ...prev, ...res.displayInfo }));
+      setPhase('success');
+      window.setTimeout(onActivated, SUCCESS_HOLD_MS);
     } catch (err) {
       setErrorMessage(COMMIT_ERROR);
       setPhase('error');
@@ -177,6 +186,14 @@ export function ActivationModal({ token, onClose, onActivated }: Props) {
           <Spinner />
           <span>Connecting…</span>
         </div>
+      )}
+
+      {phase === 'success' && (
+        <Notice status="success" isDismissible={false}>
+          {displayInfo.workspaceName
+            ? `Connected to ${displayInfo.workspaceName}.`
+            : 'Connected to Universally.'}
+        </Notice>
       )}
 
       {phase === 'error' && (

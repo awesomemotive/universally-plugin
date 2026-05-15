@@ -49,10 +49,12 @@ function App({ panelData }: { panelData: PanelDataWithOnboarding }) {
           token={activationToken}
           onClose={() => setActivationToken(null)}
           onActivated={() => {
-            // Full reload so the existing api-key field re-fetches via its own GET /validate-api-key
-            // path. The field caches its response at module level; rather than reach in and bust
-            // that cache, we let the new page mount cleanly.
-            window.location.reload();
+            // Try to close the tab the dashboard popped open. Browsers only honor
+            // window.close() for script-opened windows, so if the user landed here
+            // via normal navigation it's silently ignored — fall back to a full
+            // reload so the existing api-key field re-fetches its state cleanly.
+            window.close();
+            window.setTimeout(() => window.location.reload(), 200);
           }}
         />
       )}
