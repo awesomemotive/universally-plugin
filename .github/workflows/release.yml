@@ -134,8 +134,10 @@ jobs:
         uses: wordpress/plugin-check-action@v1
         with:
           build-dir: build/staging/${{ env.SLUG }}
-          # See ci.yml for per-code rationale.
-          ignore-codes: 'mismatched_plugin_name,stable_tag_mismatch,EnqueuedScriptsScope,NonBlockingScripts.NoStrategy'
+          # stable_tag_mismatch is only suppressed on prereleases — where Stable tag intentionally
+          # stays at the last shipped stable while Version is bumped. Stable releases MUST pass
+          # this check so a forgotten Stable-tag bump blocks the SVN deploy.
+          ignore-codes: ${{ steps.parse.outputs.is_prerelease == 'true' && 'mismatched_plugin_name,stable_tag_mismatch,EnqueuedScriptsScope,NonBlockingScripts.NoStrategy' || 'mismatched_plugin_name,EnqueuedScriptsScope,NonBlockingScripts.NoStrategy' }}
 
       - name: Upload staging artifact
         uses: actions/upload-artifact@v4
