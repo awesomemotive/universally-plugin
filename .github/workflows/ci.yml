@@ -183,29 +183,22 @@ jobs:
           mkdir -p tests/playground
           nohup npx --yes @wp-now/wp-now start \
             --path="$PLUGIN_DIR" \
-            --port=8881 \
+            --port=12345 \
             --reset \
             > tests/playground/wp-now.log 2>&1 &
           echo $! > tests/playground/wp-now.pid
-          for i in $(seq 1 120); do
-            if curl -fsS http://127.0.0.1:8881/wp-login.php >/dev/null 2>&1; then
+          # Probe content, not just status — confirms a real WP login page (not a
+          # stray service on the runner). 4 minutes for first-run downloads.
+          for i in $(seq 1 240); do
+            if curl -fsS http://127.0.0.1:12345/wp-login.php 2>/dev/null | grep -q "user_login"; then
               echo "wp-now ready after ${i}s"
               exit 0
             fi
             sleep 1
           done
-          echo "wp-now never responded" >&2
-          tail -n 100 tests/playground/wp-now.log >&2 || true
+          echo "wp-now never responded with a WP login page" >&2
+          tail -n 200 tests/playground/wp-now.log >&2 || true
           exit 1
-
-      - name: Skip plugin onboarding (best-effort)
-        if: steps.wpnow.outcome == 'success'
-        continue-on-error: true
-        run: |
-          PLUGIN_DIR="${{ github.workspace }}/build/check/${SLUG}"
-          npx --yes @wp-now/wp-now wp \
-            --path="$PLUGIN_DIR" \
-            option update universally_settings_onboarding '{"status":"skipped"}' --format=json || true
 
       - name: Run Playwright smoke
         if: steps.wpnow.outcome == 'success'

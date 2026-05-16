@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = process.env.WP_PORT ?? '8881';
+const PORT = process.env.WP_PORT ?? '12345';
 
 export default defineConfig({
   testDir: '.',
