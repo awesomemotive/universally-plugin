@@ -26,20 +26,29 @@ jobs:
             phpcompatibility/phpcompatibility-wp:^2 \
             dealerdirect/phpcodesniffer-composer-installer:^1
 
-      - name: Scan with reviewdog
-        uses: reviewdog/action-phpcs@v1
+      - uses: reviewdog/action-setup@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review
-          filter_mode: nofilter
-          level: error
-          phpcs_args: >-
-            --standard=PHPCompatibilityWP
-            --runtime-set testVersion 7.4-
-            --extensions=php
-            plugin/app
-            plugin/includes
-            plugin/panel/src
-            plugin/universally.php
-            plugin/uninstall.php
-            plugin/config.php
+          reviewdog_version: latest
+
+      - name: Run PHPCompatibility (PHP 7.4)
+        continue-on-error: true
+        run: |
+          phpcs --report=checkstyle \
+            --standard=PHPCompatibilityWP \
+            --runtime-set testVersion 7.4- \
+            --extensions=php \
+            plugin/app plugin/includes plugin/panel/src \
+            plugin/universally.php plugin/uninstall.php plugin/config.php \
+            > phpcs-report.xml
+
+      - name: Post findings via reviewdog
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat phpcs-report.xml | reviewdog \
+            -f=checkstyle \
+            -name=phpcs \
+            -reporter=github-pr-review \
+            -filter-mode=nofilter \
+            -level=error \
+            -fail-on-error=true
