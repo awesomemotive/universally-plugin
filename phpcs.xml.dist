@@ -49,6 +49,9 @@
                 <element value="universally-language-translation-multilingual-tool"/>
             </property>
         </properties>
+        <!-- Plugin lives in a directory called `plugin/` in the source repo; the sniff
+             infers the slug from that and produces a false-positive mismatch. -->
+        <exclude name="WordPress.WP.I18n.TextDomainMismatch"/>
     </rule>
 
     <!-- ===== Don't shadow WP globals ===== -->

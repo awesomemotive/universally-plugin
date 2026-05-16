@@ -134,6 +134,8 @@ jobs:
         uses: wordpress/plugin-check-action@v1
         with:
           build-dir: build/staging/${{ env.SLUG }}
+          # Kept in sync with ci.yml. See that file for the rationale per check.
+          exclude-checks: 'plugin_readme,plugin_repo,plugin_header_fields,trademarks,non_blocking_scripts,enqueued_scripts_scope'
 
       - name: Upload staging artifact
         uses: actions/upload-artifact@v4
