@@ -44,8 +44,8 @@ jobs:
             -name=phpcs \
             -reporter=github-pr-review \
             -filter-mode=nofilter \
-            -level=error \
-            -fail-on-error=true
+            -level=warning \
+            -fail-level=error
 
   plugin-check:
     name: WordPress Plugin Check
