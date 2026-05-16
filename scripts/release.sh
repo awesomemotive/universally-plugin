@@ -48,31 +48,11 @@ bump_version() {
     echo "${major}.${minor}.${patch}"
 }
 
-next_prerelease() {
-    # Args: channel ("beta" or "rc")
-    # If current is already a prerelease of the same channel (X.Y.Z-channel.N),
-    # increment N and keep the same base. Otherwise bump patch and start at .1
-    # (or after the highest existing tag for that base+channel).
-    local channel="$1"
-    local current base last
-    current=$(get_current_version)
-
-    if [[ "$current" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-${channel}\.([0-9]+)$ ]]; then
-        base="${BASH_REMATCH[1]}"
-        local n="${BASH_REMATCH[2]}"
-        echo "${base}-${channel}.$((n + 1))"
-        return
-    fi
-
-    local stable="${current%%-*}"
-    # If the stable vX.Y.Z tag does NOT exist yet, the prerelease targets that
-    # same X.Y.Z (it's still unshipped). Otherwise, target the next patch.
-    if git rev-parse -q --verify "refs/tags/v${stable}" >/dev/null 2>&1; then
-        base=$(bump_version "$stable" "patch")
-    else
-        base="$stable"
-    fi
-
+next_prerelease_for() {
+    # Args: base_version (X.Y.Z), channel ("beta" or "rc")
+    # Returns: ${base}-${channel}.${N} where N is one greater than the highest
+    # existing tag for that base+channel, or 1 if none exist.
+    local base="$1" channel="$2" last
     last=$(git tag --list "v${base}-${channel}.*" 2>/dev/null \
         | sed -E "s/^v${base}-${channel}\\.//" \
         | sort -n | tail -n1)
@@ -204,52 +184,72 @@ main() {
 
     confirm_clean_worktree
 
-    local current_version v_patch v_minor v_major beta_next rc_next
+    local current_version v_patch v_minor v_major
     current_version=$(get_current_version)
     v_patch=$(bump_version "$current_version" "patch")
     v_minor=$(bump_version "$current_version" "minor")
     v_major=$(bump_version "$current_version" "major")
-    beta_next=$(next_prerelease "beta")
-    rc_next=$(next_prerelease "rc")
 
     print_message "Current version: ${current_version}" "$YELLOW"
     echo
-    print_message "Select release type:" "$CYAN"
-    print_message "  1) patch   → ${v_patch}" "$NC"
-    print_message "  2) minor   → ${v_minor}" "$NC"
-    print_message "  3) major   → ${v_major}    (extra confirmation)" "$NC"
-    print_message "  4) beta    → ${beta_next}" "$NC"
-    print_message "  5) rc      → ${rc_next}" "$NC"
-    print_message "  6) custom" "$NC"
-    print_message "  7) rebuild current ${current_version}  (force re-release; pre-wp.org-approval only)" "$NC"
-    echo
-    read -rp "Choice [1]: " choice
-    choice=${choice:-1}
 
-    local new_version force_tag=false
-    case "$choice" in
-        1) new_version="$v_patch" ;;
-        2) new_version="$v_minor" ;;
+    # Step 1: bump type — what version are we targeting?
+    print_message "Select bump type:" "$CYAN"
+    print_message "  1) patch    → ${v_patch}" "$NC"
+    print_message "  2) minor    → ${v_minor}" "$NC"
+    print_message "  3) major    → ${v_major}    (extra confirmation)" "$NC"
+    print_message "  4) custom   (enter the exact version — skips channel prompt)" "$NC"
+    print_message "  5) rebuild  ${current_version}    (force re-release; skips channel prompt)" "$NC"
+    echo
+    read -rp "Bump [1]: " bump_choice
+    bump_choice=${bump_choice:-1}
+
+    local base_version new_version force_tag=false skip_channel=false
+    case "$bump_choice" in
+        1) base_version="$v_patch" ;;
+        2) base_version="$v_minor" ;;
         3)
             print_message "WARNING: major version bump (${current_version} → ${v_major})." "$RED"
             read -rp "Type 'major' to confirm: " confirm
             [ "$confirm" = "major" ] || { print_message "Aborted." "$RED"; exit 1; }
-            new_version="$v_major"
+            base_version="$v_major"
             ;;
-        4) new_version="$beta_next" ;;
-        5) new_version="$rc_next" ;;
-        6)
+        4)
             read -rp "Enter version: " new_version
+            skip_channel=true
             ;;
-        7)
+        5)
             print_message "Rebuilding ${current_version}. This force-replaces the existing tag." "$YELLOW"
             read -rp "Type 'rebuild' to confirm: " confirm
             [ "$confirm" = "rebuild" ] || { print_message "Aborted." "$RED"; exit 1; }
             new_version="$current_version"
             force_tag=true
+            skip_channel=true
             ;;
         *) print_message "Invalid choice." "$RED"; exit 1 ;;
     esac
+
+    # Step 2: channel — stable, beta, or rc?
+    if [ "$skip_channel" = false ]; then
+        local beta_preview rc_preview
+        beta_preview=$(next_prerelease_for "$base_version" "beta")
+        rc_preview=$(next_prerelease_for "$base_version" "rc")
+        echo
+        print_message "Select channel:" "$CYAN"
+        print_message "  1) stable   → ${base_version}" "$NC"
+        print_message "  2) beta     → ${beta_preview}" "$NC"
+        print_message "  3) rc       → ${rc_preview}" "$NC"
+        echo
+        read -rp "Channel [1]: " ch_choice
+        ch_choice=${ch_choice:-1}
+
+        case "$ch_choice" in
+            1) new_version="$base_version" ;;
+            2) new_version="$beta_preview" ;;
+            3) new_version="$rc_preview" ;;
+            *) print_message "Invalid choice." "$RED"; exit 1 ;;
+        esac
+    fi
 
     if ! [[ $new_version =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
         print_message "Error: invalid version format. Use semver (e.g., 1.0.0 or 1.0.0-beta.1)" "$RED"

@@ -53,17 +53,26 @@ docker compose down -v   # wipe DB + WP install when done
 npm run release
 ```
 
-Interactive menu:
+Two-step interactive menu — first pick the **bump type**, then the **channel**:
 
+**Bump type:**
 - `1) patch` — `1.0.0 → 1.0.1`
 - `2) minor` — `1.0.0 → 1.1.0`
 - `3) major` — `1.0.0 → 2.0.0` (extra confirmation)
-- `4) beta` — next `vX.Y.Z-beta.N` for the unshipped stable
-- `5) rc` — next `vX.Y.Z-rc.N`
-- `6) custom` — enter any semver string
-- `7) rebuild current` — force re-release of the current version (replaces the tag)
+- `4) custom` — enter the exact version (skips channel prompt)
+- `5) rebuild` — force re-release of the current version (skips channel prompt; replaces the tag)
 
-The script bumps `plugin/universally.php`, `plugin/package.json`, and `plugin/readme.txt` (`Stable tag` for stable releases), commits, creates an annotated `vX.Y.Z` tag, and pushes.
+**Channel** (only shown for patch / minor / major):
+- `1) stable` — `vX.Y.Z`
+- `2) beta` — `vX.Y.Z-beta.N` (auto-increments N from existing beta tags for that base)
+- `3) rc` — `vX.Y.Z-rc.N`
+
+Examples:
+- patch + stable from `1.0.1` → `1.0.2`
+- patch + beta from `1.0.1` → `1.0.2-beta.1`
+- minor + rc from `1.0.1` → `1.1.0-rc.1` (or `.2` if `v1.1.0-rc.1` already exists)
+
+The script bumps `plugin/universally.php`, `plugin/package.json`, and `plugin/readme.txt` (`Stable tag` only for stable releases), commits, creates an annotated `vX.Y.Z` tag, and pushes.
 
 CI (`.github/workflows/release.yml`) picks up the tag push:
 
