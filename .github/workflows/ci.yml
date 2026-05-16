@@ -50,6 +50,8 @@ jobs:
   plugin-check:
     name: WordPress Plugin Check
     runs-on: ubuntu-latest
+    env:
+      SLUG: universally-language-translation-multilingual-tool
     steps:
       - uses: actions/checkout@v5
 
@@ -64,26 +66,47 @@ jobs:
           cache: 'npm'
           cache-dependency-path: plugin/package-lock.json
 
-      - name: Build for plugin-check
-        working-directory: plugin
+      - name: Stage plugin under wp.org slug
         run: |
+          set -euo pipefail
+          STAGE="build/check/${SLUG}"
+          rm -rf build && mkdir -p "$STAGE"
+
+          cp plugin/universally.php "$STAGE/"
+          cp plugin/uninstall.php   "$STAGE/"
+          cp plugin/config.php      "$STAGE/"
+          cp plugin/readme.txt      "$STAGE/"
+          cp -r plugin/app          "$STAGE/app"
+          cp -r plugin/includes     "$STAGE/includes"
+          cp -r plugin/assets       "$STAGE/assets"
+          cp -r plugin/languages    "$STAGE/languages"
+          cp -r plugin/panel/src    "$STAGE/panel/src"
+          cp plugin/composer.json   "$STAGE/"
+
+          cd plugin
           npm ci
           npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
-          composer install --no-dev --optimize-autoloader --no-interaction
+          cd -
+
+          mkdir -p "$STAGE/panel/build"
+          cp plugin/panel/build/index.js         "$STAGE/panel/build/"
+          cp plugin/panel/build/index.asset.php  "$STAGE/panel/build/"
+          for f in plugin/panel/build/style-index*.css; do
+            [ -f "$f" ] && cp "$f" "$STAGE/panel/build/"
+          done
+          [ -d plugin/panel/build/blocks ] && cp -r plugin/panel/build/blocks "$STAGE/panel/build/blocks"
+
+          (cd "$STAGE" && composer install --no-dev --optimize-autoloader --no-interaction --quiet)
+          rm -f "$STAGE/composer.lock"
 
       - uses: wordpress/plugin-check-action@v1
         with:
-          build-dir: ./plugin
-          # Disabled checks (rationale per item):
-          # - plugin_readme: stable_tag_mismatch is intentional on prereleases; mismatched_plugin_name
-          #   is intentional (long SEO name in readme vs short name in header).
-          # - plugin_repo: hidden_files fires on .gitignore in source; the dist zip doesn't ship it.
-          # - plugin_header_fields: textdomain_mismatch infers slug from the source dir name "plugin/"
-          #   which is wrong; trademarked_term likewise.
-          # - trademarks: same trademarked_term root cause as above.
-          # - non_blocking_scripts / enqueued_scripts_scope: performance warnings on the language
-          #   switcher script that we accept.
-          exclude-checks: 'plugin_readme,plugin_repo,plugin_header_fields,trademarks,non_blocking_scripts,enqueued_scripts_scope'
+          build-dir: build/check/${{ env.SLUG }}
+          # Remaining exclusions after staging (dir-name issues auto-resolve):
+          # - plugin_readme: mismatched_plugin_name is intentional (long SEO name in readme vs short in header).
+          # - non_blocking_scripts / enqueued_scripts_scope: accepted performance warnings on the
+          #   language switcher script.
+          exclude-checks: 'plugin_readme,non_blocking_scripts,enqueued_scripts_scope'
 
   composer-audit:
     name: composer audit
