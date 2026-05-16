@@ -1,0 +1,13 @@
+{
+  "name": "universally-playground-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Headless WordPress smoke screenshots for the Universally plugin admin + front-end.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@wp-now/wp-now": "^0.1.74"
+  }
+}

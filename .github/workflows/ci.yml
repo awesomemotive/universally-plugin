@@ -50,6 +50,9 @@ jobs:
   build-and-preview:
     name: Build, check & Playground preview
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # sticky Playground comment
     env:
       SLUG: universally-language-translation-multilingual-tool
     steps:
@@ -130,7 +133,7 @@ jobs:
           path: build/check
           retention-days: 14
 
-      - name: Compose Playground link
+      - name: Compose Playground links
         if: always() && steps.upload.outcome == 'success'
         id: playground
         run: |
@@ -138,9 +141,22 @@ jobs:
           ZIP_URL="https://nightly.link/${{ github.repository }}/actions/artifacts/${{ steps.upload.outputs.artifact-id }}.zip"
           BLUEPRINT='{"landingPage":"/wp-admin/plugins.php","login":true,"steps":[{"step":"installPlugin","pluginData":{"resource":"url","url":"'"${ZIP_URL}"'"}}]}'
           ENCODED=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$BLUEPRINT")
+          link() { echo "[open](https://playground.wordpress.net/?php=$1&wp=$2#${ENCODED})"; }
+
+          TABLE=$(cat <<EOF
+          | WP \ PHP | 7.4 | 8.0 | 8.1 | 8.2 | 8.3 |
+          |---|---|---|---|---|---|
+          | 6.4 | $(link 7.4 6.4) | — | — | — | — |
+          | latest | $(link 7.4 latest) | $(link 8.0 latest) | $(link 8.1 latest) | $(link 8.2 latest) | $(link 8.3 latest) |
+          EOF
+          )
+
+          DELIM="EOF_$(date +%s)"
           {
-            echo "url=https://playground.wordpress.net/?php=8.0#${ENCODED}"
             echo "zip_url=${ZIP_URL}"
+            echo "table<<${DELIM}"
+            echo "$TABLE"
+            echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Sticky Playground comment
@@ -151,11 +167,77 @@ jobs:
           message: |
             🚀 **Test this PR in WordPress Playground**
 
-            [Open in Playground](${{ steps.playground.outputs.url }}) — auto-installs the plugin built from this branch.
+            Each link auto-installs the plugin built from this branch into a fresh WP at the given version combo.
+
+            ${{ steps.playground.outputs.table }}
 
             Direct zip download: ${{ steps.playground.outputs.zip_url }}
 
             Built from `${{ github.event.pull_request.head.sha }}`. Artifact expires in 14 days.
+
+      # --- Headless WP smoke test -------------------------------------------
+      # Boots the staged plugin under wp-now (Playground's WASM/SQLite WP
+      # runtime, headless) so a real WordPress renders the admin panel.
+      # Playwright then asserts: plugin activates without a fatal, each of the
+      # three settings tabs hydrates with fields, the REST namespace is
+      # registered, and the front-end home doesn't WSOD. Pure pass/fail — no
+      # screenshots, no PR comment, no external storage.
+      - name: Install Playwright test deps
+        if: github.event_name == 'pull_request' && steps.stage.outcome == 'success'
+        working-directory: tests/playground
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Boot wp-now with staged plugin
+        if: github.event_name == 'pull_request' && steps.stage.outcome == 'success'
+        id: wpnow
+        run: |
+          set -euo pipefail
+          PLUGIN_DIR="${{ github.workspace }}/build/check/${SLUG}"
+          mkdir -p tests/playground
+          nohup npx --yes @wp-now/wp-now start \
+            --path="$PLUGIN_DIR" \
+            --port=12345 \
+            --reset \
+            > tests/playground/wp-now.log 2>&1 &
+          echo $! > tests/playground/wp-now.pid
+          # Probe via localhost (wp-now binds to :: dual-stack; localhost picks
+          # whichever family works). -L follows install-wizard redirects.
+          for i in $(seq 1 240); do
+            if curl -fsSL "http://localhost:12345/" -o /dev/null 2>/dev/null; then
+              echo "wp-now ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "wp-now never responded" >&2
+          echo "--- listening sockets ---" >&2
+          ss -ltn || netstat -tln || true
+          echo "--- wp-now.log ---" >&2
+          tail -n 200 tests/playground/wp-now.log >&2 || true
+          exit 1
+
+      - name: Run Playwright smoke
+        if: steps.wpnow.outcome == 'success'
+        id: smoke
+        working-directory: tests/playground
+        run: npx playwright test --reporter=list
+
+      - name: Dump wp-now log on failure
+        if: failure() && steps.wpnow.outcome == 'success'
+        run: |
+          echo "=== wp-now.log (tail) ==="
+          tail -n 200 tests/playground/wp-now.log || true
+          echo "=== PHP fatals / parse errors in log ==="
+          grep -E "PHP (Fatal|Parse) error|Uncaught" tests/playground/wp-now.log || echo "(none found)"
+
+      - name: Stop wp-now
+        if: always() && steps.wpnow.outcome == 'success'
+        run: |
+          if [ -f tests/playground/wp-now.pid ]; then
+            kill "$(cat tests/playground/wp-now.pid)" 2>/dev/null || true
+          fi
 
   composer-audit:
     name: composer audit
