@@ -1,8 +1,5 @@
 import { test, expect, type Page, type ConsoleMessage } from '@playwright/test';
-import path from 'node:path';
 
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'password';
 const SLUG = 'universally-language-translation-multilingual-tool';
 const PANEL_PAGE = '/wp-admin/admin.php?page=universally_settings';
 
@@ -36,27 +33,7 @@ async function expectNoFatalCopy(page: Page): Promise<void> {
   }
 }
 
-async function login(page: Page): Promise<void> {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await Promise.all([
-    page.waitForURL('**/wp-admin/**', { timeout: 30_000 }),
-    page.click('#wp-submit'),
-  ]);
-}
-
 test.describe('Universally smoke', () => {
-  test.beforeAll(async ({ browser }) => {
-    const ctx = await browser.newContext();
-    const page = await ctx.newPage();
-    await login(page);
-    await ctx.storageState({ path: path.join(__dirname, 'auth.json') });
-    await ctx.close();
-  });
-
-  test.use({ storageState: path.join(__dirname, 'auth.json') });
-
   test('plugin is active and shows no activation error', async ({ page }) => {
     const consoleErrors = attachConsoleGuard(page);
     await page.goto('/wp-admin/plugins.php');
