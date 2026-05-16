@@ -43,7 +43,7 @@ export function Field({ fieldId, config }: FieldProps) {
           fieldId={fieldId}
           config={config}
           value={getValue(fieldId)}
-          onChange={(value) => setValue(fieldId, value)}
+          onChange={(value: unknown) => setValue(fieldId, value)}
           error={error}
         />
       </div>

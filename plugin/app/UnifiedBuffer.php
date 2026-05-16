@@ -91,6 +91,7 @@ class UnifiedBuffer
      */
     private function detectLanguage()
     {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- URL is parsed by wp_parse_url; sanitize_text_field would strip percent-encoded UTF-8 (emoji, non-Latin slugs).
         $requestUri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '/';
         $parsedUri = wp_parse_url($requestUri);
         $rawPath = $parsedUri['path'] ?? '/';
@@ -126,6 +127,7 @@ class UnifiedBuffer
         if (!empty($_SERVER['QUERY_STRING'])) {
             // Don't run the query string through sanitize_text_field — it strips every
             // %XX byte, which destroys emoji and non-Latin characters.
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- esc_url_raw wraps the full URL below.
             $redirectUrl .= '?' . wp_unslash($_SERVER['QUERY_STRING']);
         }
         wp_safe_redirect(esc_url_raw(home_url($redirectUrl)), 301);
@@ -136,6 +138,7 @@ class UnifiedBuffer
     {
         $newRequestUri = $pathAfterPrefix;
         if (!empty($_SERVER['QUERY_STRING'])) {
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- written back to $_SERVER for WP to consume; sanitize_text_field would corrupt percent-encoded UTF-8.
             $newRequestUri .= '?' . wp_unslash($_SERVER['QUERY_STRING']);
         }
         $_SERVER['REQUEST_URI'] = $newRequestUri;
@@ -187,6 +190,7 @@ class UnifiedBuffer
         }
 
         $targetLanguage = UNIVERSALLY_CURRENT_LOCALE;
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- esc_url_raw wraps the full URL; sanitize_text_field would corrupt percent-encoded UTF-8.
         $sourceUrl = is_404() ? home_url('/404') : esc_url_raw(home_url(wp_unslash($_SERVER['REQUEST_URI'] ?? '/')));
 
         try {

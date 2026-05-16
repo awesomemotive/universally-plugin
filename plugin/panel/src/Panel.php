@@ -34,6 +34,7 @@ final class Panel
             throw new \InvalidArgumentException(esc_html("Config file not found: {$path}"));
         }
 
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local file read, not a remote URL.
         $json = file_get_contents($path);
         $config = json_decode($json, true);
 
@@ -265,8 +266,10 @@ final class Panel
             $svgPath = $pluginRoot . '/' . ltrim($menu['iconPath'], '/');
 
             if (file_exists($svgPath)) {
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local file read, not a remote URL.
                 $svg = file_get_contents($svgPath);
                 if ($svg !== false) {
+                    // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- encoding a local SVG as a data URI.
                     return 'data:image/svg+xml;base64,' . base64_encode($svg);
                 }
             }

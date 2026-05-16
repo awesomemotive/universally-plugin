@@ -1,7 +1,9 @@
 import type { ComponentType } from 'react';
-import type { FieldComponentProps } from './types';
 
-type FieldComponent = ComponentType<FieldComponentProps<any>>;
+// Field components each declare their own narrower Props type; the registry
+// just routes the type-string to the component, so we accept any compatible
+// component shape here. Per-field props are validated at the component boundary.
+type FieldComponent = ComponentType<any>;
 
 interface FieldRegistration {
   component: FieldComponent;

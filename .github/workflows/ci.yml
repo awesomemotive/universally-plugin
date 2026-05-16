@@ -1,0 +1,191 @@
+name: Pull Request
+
+on:
+  pull_request:
+
+jobs:
+  phpcs:
+    name: PHPCS (security + PHP 7.4 compat)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # reviewdog needs this to post PR review comments
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer
+
+      - name: Install phpcs + sniff packages
+        run: |
+          composer global config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+          composer global require --no-progress --no-interaction \
+            squizlabs/php_codesniffer:^3 \
+            phpcompatibility/phpcompatibility-wp:^2 \
+            wp-coding-standards/wpcs:^3 \
+            dealerdirect/phpcodesniffer-composer-installer:^1
+
+      - uses: reviewdog/action-setup@v1
+        with:
+          reviewdog_version: latest
+
+      - name: Run phpcs (phpcs.xml.dist)
+        continue-on-error: true
+        run: phpcs --report=checkstyle > phpcs-report.xml
+
+      - name: Post findings via reviewdog
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat phpcs-report.xml | reviewdog \
+            -f=checkstyle \
+            -name=phpcs \
+            -reporter=github-pr-review \
+            -filter-mode=nofilter \
+            -level=warning \
+            -fail-level=error
+
+  build-and-preview:
+    name: Build, check & Playground preview
+    runs-on: ubuntu-latest
+    env:
+      SLUG: universally-language-translation-multilingual-tool
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: plugin/package-lock.json
+
+      - name: Build panel JS + POT
+        working-directory: plugin
+        run: |
+          npm ci
+          npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
+          # POT is a generated artifact (not committed to source); regenerate so it
+          # ships in the staged tree the same way release.yml does it.
+          npm run makepot
+
+      - name: Stage plugin under wp.org slug
+        id: stage
+        run: |
+          set -euo pipefail
+          STAGE="build/check/${SLUG}"
+          rm -rf build && mkdir -p "$STAGE"
+
+          cp plugin/universally.php "$STAGE/"
+          cp plugin/uninstall.php   "$STAGE/"
+          cp plugin/config.php      "$STAGE/"
+          cp plugin/readme.txt      "$STAGE/"
+          cp -r plugin/app          "$STAGE/app"
+          cp -r plugin/includes     "$STAGE/includes"
+          cp -r plugin/assets       "$STAGE/assets"
+          cp -r plugin/languages    "$STAGE/languages"
+          mkdir -p "$STAGE/panel"
+          cp -r plugin/panel/src    "$STAGE/panel/src"
+          cp plugin/composer.json   "$STAGE/"
+
+          mkdir -p "$STAGE/panel/build"
+          cp plugin/panel/build/index.js         "$STAGE/panel/build/"
+          cp plugin/panel/build/index.asset.php  "$STAGE/panel/build/"
+          for f in plugin/panel/build/style-index*.css; do
+            [ -f "$f" ] && cp "$f" "$STAGE/panel/build/"
+          done
+          [ -d plugin/panel/build/blocks ] && cp -r plugin/panel/build/blocks "$STAGE/panel/build/blocks"
+
+          (cd "$STAGE" && composer install --no-dev --optimize-autoloader --no-interaction --quiet)
+          rm -f "$STAGE/composer.lock"
+
+      - uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: build/check/${{ env.SLUG }}
+          # Error-code-level suppression so we keep the rest of each parent check enabled
+          # (license / requires / tested-up-to / etc. inside plugin_readme stay active).
+          # - mismatched_plugin_name: intentional (long SEO name in readme vs short in header).
+          # - stable_tag_mismatch: source enters this state during "prerelease in progress" windows
+          #   (Version bumped to vX.Y.Z-beta.N, Stable tag stays at last shipped stable). The real
+          #   gate is in release.yml, where this is enforced on stable-tag pushes.
+          # - EnqueuedScriptsScope, NonBlockingScripts.NoStrategy: accepted perf warnings on the
+          #   language switcher script.
+          ignore-codes: 'mismatched_plugin_name,stable_tag_mismatch,EnqueuedScriptsScope,NonBlockingScripts.NoStrategy'
+
+      - name: Upload built plugin as PR artifact
+        if: always() && steps.stage.outcome == 'success' && github.event_name == 'pull_request'
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SLUG }}-pr-${{ github.event.pull_request.number }}
+          # Uploading `build/check` (not the inner slug dir) preserves the wrapping
+          # ${SLUG}/ folder inside the artifact zip — which is what WP/Playground
+          # expects when installing a plugin from a URL.
+          path: build/check
+          retention-days: 14
+
+      - name: Compose Playground link
+        if: always() && steps.upload.outcome == 'success'
+        id: playground
+        run: |
+          set -euo pipefail
+          ZIP_URL="https://nightly.link/${{ github.repository }}/actions/artifacts/${{ steps.upload.outputs.artifact-id }}.zip"
+          BLUEPRINT='{"landingPage":"/wp-admin/plugins.php","login":true,"steps":[{"step":"installPlugin","pluginData":{"resource":"url","url":"'"${ZIP_URL}"'"}}]}'
+          ENCODED=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$BLUEPRINT")
+          {
+            echo "url=https://playground.wordpress.net/?php=8.0#${ENCODED}"
+            echo "zip_url=${ZIP_URL}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Sticky Playground comment
+        if: always() && steps.playground.outcome == 'success'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-playground
+          message: |
+            🚀 **Test this PR in WordPress Playground**
+
+            [Open in Playground](${{ steps.playground.outputs.url }}) — auto-installs the plugin built from this branch.
+
+            Direct zip download: ${{ steps.playground.outputs.zip_url }}
+
+            Built from `${{ github.event.pull_request.head.sha }}`. Artifact expires in 14 days.
+
+  composer-audit:
+    name: composer audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer
+
+      - name: composer audit
+        working-directory: plugin
+        run: composer audit --no-dev --abandoned=report
+
+  typescript:
+    name: TypeScript type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: plugin/package-lock.json
+
+      - name: Type-check
+        working-directory: plugin
+        run: |
+          npm ci
+          npx tsc --noEmit

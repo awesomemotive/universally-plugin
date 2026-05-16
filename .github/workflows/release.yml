@@ -64,6 +64,18 @@ jobs:
           php-version: '7.4'
           tools: composer
 
+      - name: Install phpcs + sniff packages
+        run: |
+          composer global config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+          composer global require --no-progress --no-interaction \
+            squizlabs/php_codesniffer:^3 \
+            phpcompatibility/phpcompatibility-wp:^2 \
+            wp-coding-standards/wpcs:^3 \
+            dealerdirect/phpcodesniffer-composer-installer:^1
+
+      - name: phpcs (security + PHP 7.4 compat)
+        run: phpcs
+
       - name: Build panel JS
         working-directory: plugin
         run: |
@@ -117,6 +129,15 @@ jobs:
           mkdir -p dist
           (cd build/staging && zip -r "../../dist/${SLUG}-${VERSION}.zip" "${SLUG}" -q)
           ls -lh "dist/${SLUG}-${VERSION}.zip"
+
+      - name: WordPress Plugin Check (hard gate)
+        uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: build/staging/${{ env.SLUG }}
+          # stable_tag_mismatch is only suppressed on prereleases — where Stable tag intentionally
+          # stays at the last shipped stable while Version is bumped. Stable releases MUST pass
+          # this check so a forgotten Stable-tag bump blocks the SVN deploy.
+          ignore-codes: ${{ steps.parse.outputs.is_prerelease == 'true' && 'mismatched_plugin_name,stable_tag_mismatch,EnqueuedScriptsScope,NonBlockingScripts.NoStrategy' || 'mismatched_plugin_name,EnqueuedScriptsScope,NonBlockingScripts.NoStrategy' }}
 
       - name: Upload staging artifact
         uses: actions/upload-artifact@v4

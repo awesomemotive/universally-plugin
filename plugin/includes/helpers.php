@@ -200,6 +200,7 @@ function universally_get_switcher_urls(): array
     // sanitize_text_field strips every %XX byte, which destroys emoji and non-Latin
     // slugs (e.g. /post-with-🎉/, /অ/). Keep the URL raw — esc_url is applied later
     // when each language URL is rendered into HTML attributes.
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- intentional; see comment above.
     $currentUrl = wp_unslash($_SERVER['REQUEST_URI'] ?? '/');
     $homeUrl = home_url();
 

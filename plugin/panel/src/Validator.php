@@ -80,6 +80,7 @@ final class Validator
             'regex' => function ($value, $params) {
                 $pattern = $params[0] ?? '';
                 if ($value !== null && $value !== '' && !empty($pattern)) {
+                    // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- intentional: silences "invalid pattern" warning when validating a user-supplied regex.
                     $result = @preg_match($pattern, (string) $value);
                     if ($result === false || $result === 0) {
                         return __('Invalid format', 'universally-language-translation-multilingual-tool');

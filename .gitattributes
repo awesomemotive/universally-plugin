@@ -1,11 +1,12 @@
-* text=auto
+# Force LF line endings on every text file, on every OS.
+# `eol=lf` applies to working copies after checkout (so Windows checkouts also get LF).
+* text=auto eol=lf
 
-*.sh   text eol=lf
-*.yml  text eol=lf
-*.yaml text eol=lf
+# Explicit text declaration for files that should never be treated as binary.
+*.svg text
 
+# Binaries — never touch their bytes.
 *.png binary
 *.jpg binary
 *.gif binary
-*.svg text
 *.ico binary

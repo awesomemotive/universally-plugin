@@ -125,6 +125,7 @@ export interface PanelState {
   message: string | null;
   messageType: 'success' | 'error' | null;
   errors: Record<string, string>;
+  nonce: string;
 }
 
 export type PanelAction =
