@@ -4,8 +4,8 @@ on:
   pull_request:
 
 jobs:
-  php-compat:
-    name: PHP 7.4 compatibility
+  phpcs:
+    name: PHPCS (security + PHP 7.4 compat)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -18,28 +18,22 @@ jobs:
           php-version: '7.4'
           tools: composer
 
-      - name: Install PHPCompatibility + phpcs
+      - name: Install phpcs + sniff packages
         run: |
           composer global config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
           composer global require --no-progress --no-interaction \
             squizlabs/php_codesniffer:^3 \
             phpcompatibility/phpcompatibility-wp:^2 \
+            wp-coding-standards/wpcs:^3 \
             dealerdirect/phpcodesniffer-composer-installer:^1
 
       - uses: reviewdog/action-setup@v1
         with:
           reviewdog_version: latest
 
-      - name: Run PHPCompatibility (PHP 7.4)
+      - name: Run phpcs (phpcs.xml.dist)
         continue-on-error: true
-        run: |
-          phpcs --report=checkstyle \
-            --standard=PHPCompatibilityWP \
-            --runtime-set testVersion 7.4- \
-            --extensions=php \
-            plugin/app plugin/includes plugin/panel/src \
-            plugin/universally.php plugin/uninstall.php plugin/config.php \
-            > phpcs-report.xml
+        run: phpcs --report=checkstyle > phpcs-report.xml
 
       - name: Post findings via reviewdog
         env:
@@ -52,3 +46,82 @@ jobs:
             -filter-mode=nofilter \
             -level=error \
             -fail-on-error=true
+
+  plugin-check:
+    name: WordPress Plugin Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: plugin/package-lock.json
+
+      - name: Build for plugin-check
+        working-directory: plugin
+        run: |
+          npm ci
+          npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
+          composer install --no-dev --optimize-autoloader --no-interaction
+
+      - uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: ./plugin
+
+  composer-audit:
+    name: composer audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer
+
+      - name: composer audit
+        working-directory: plugin
+        run: composer audit --no-dev --abandoned=report
+
+  typescript:
+    name: TypeScript type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: plugin/package-lock.json
+
+      - name: Type-check
+        working-directory: plugin
+        run: |
+          npm ci
+          npx tsc --noEmit
+
+  eslint:
+    name: ESLint (panel JS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: plugin/package-lock.json
+
+      - name: Lint
+        working-directory: plugin
+        run: |
+          npm ci
+          npx wp-scripts lint-js panel/js

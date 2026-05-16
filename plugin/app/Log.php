@@ -72,7 +72,7 @@ class Log
 
         // Add context if provided
         if (!empty($context)) {
-            $logMessage .= ' | Context: ' . json_encode($context, JSON_UNESCAPED_SLASHES);
+            $logMessage .= ' | Context: ' . wp_json_encode($context, JSON_UNESCAPED_SLASHES);
         }
 
         // Always log ERROR, WARNING, and INFO messages

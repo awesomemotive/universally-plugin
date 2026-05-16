@@ -171,7 +171,7 @@ export function ActivationModal({ token, onClose, onActivated }: Props) {
       {phase === 'confirm' && (
         <>
           <p style={{ marginTop: 0 }}>
-            You're about to connect this site to <strong>{workspaceLabel}</strong>.
+            You&rsquo;re about to connect this site to <strong>{workspaceLabel}</strong>.
           </p>
           <ul style={{ margin: '0 0 16px 16px', padding: 0 }}>
             {displayInfo.workspaceName && (

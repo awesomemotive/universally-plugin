@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<ruleset name="Universally Plugin">
+    <description>
+        Security/quality + PHP version compatibility for the Universally plugin.
+        Project uses its own code style (PSR-12-ish), so WP-style formatting and
+        naming sniffs are intentionally NOT included.
+    </description>
+
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+    <arg name="parallel" value="4"/>
+
+    <file>plugin/app</file>
+    <file>plugin/includes</file>
+    <file>plugin/panel/src</file>
+    <file>plugin/universally.php</file>
+    <file>plugin/uninstall.php</file>
+    <file>plugin/config.php</file>
+
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/panel/build/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+
+    <!-- ===== PHP version compatibility (replaces inline args in workflows) ===== -->
+    <rule ref="PHPCompatibilityWP"/>
+    <config name="testVersion" value="7.4-"/>
+
+    <!-- ===== Security ===== -->
+    <rule ref="WordPress.Security"/>
+
+    <!-- ===== SQL safety ===== -->
+    <rule ref="WordPress.DB.PreparedSQL"/>
+    <rule ref="WordPress.DB.PreparedSQLPlaceholders"/>
+    <rule ref="WordPress.DB.DirectDatabaseQuery"/>
+    <rule ref="WordPress.DB.SlowDBQuery"/>
+
+    <!-- ===== Use WP HTTP API instead of raw curl/file_get_contents/etc. ===== -->
+    <rule ref="WordPress.WP.AlternativeFunctions"/>
+
+    <!-- ===== Deprecated WP APIs ===== -->
+    <rule ref="WordPress.WP.DeprecatedFunctions"/>
+    <rule ref="WordPress.WP.DeprecatedClasses"/>
+    <rule ref="WordPress.WP.DeprecatedParameters"/>
+
+    <!-- ===== i18n: text domain consistency, no variables in __() ===== -->
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="universally-language-translation-multilingual-tool"/>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- ===== Don't shadow WP globals ===== -->
+    <rule ref="WordPress.WP.GlobalVariablesOverride"/>
+
+    <!-- ===== Real-error PHP ===== -->
+    <rule ref="WordPress.PHP.NoSilencedErrors"/>
+    <rule ref="WordPress.PHP.DiscouragedPHPFunctions"/>
+
+    <!-- ===== Prevent leaking unprefixed globals ===== -->
+    <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+        <properties>
+            <property name="prefixes" type="array">
+                <element value="universally"/>
+                <element value="UNIVERSALLY"/>
+                <element value="Universally"/>
+            </property>
+        </properties>
+    </rule>
+</ruleset>

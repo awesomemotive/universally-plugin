@@ -233,6 +233,7 @@ class LanguageSwitcher
             return false;
         }
 
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- URL is parsed by wp_parse_url; sanitize_text_field would strip percent-encoded UTF-8.
         $currentPath = wp_parse_url(wp_unslash($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
         $currentPath = rtrim($currentPath ?? '/', '/');
 

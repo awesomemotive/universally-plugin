@@ -15,6 +15,7 @@ const initialState: PanelState = {
   message: null,
   messageType: null,
   errors: {},
+  nonce: '',
 };
 
 function reducer(state: PanelState, action: PanelAction): PanelState {
