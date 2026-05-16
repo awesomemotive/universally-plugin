@@ -102,11 +102,13 @@ jobs:
       - uses: wordpress/plugin-check-action@v1
         with:
           build-dir: build/check/${{ env.SLUG }}
-          # Remaining exclusions after staging (dir-name issues auto-resolve):
-          # - plugin_readme: mismatched_plugin_name is intentional (long SEO name in readme vs short in header).
-          # - non_blocking_scripts / enqueued_scripts_scope: accepted performance warnings on the
+          # Error-code-level suppression so we keep the rest of each parent check enabled
+          # (license / requires / tested-up-to / etc. inside plugin_readme stay active).
+          # - mismatched_plugin_name: intentional (long SEO name in readme vs short in header).
+          # - stable_tag_mismatch: intentional on prereleases (Stable tag stays at last shipped stable).
+          # - EnqueuedScriptsScope, NonBlockingScripts.NoStrategy: accepted perf warnings on the
           #   language switcher script.
-          exclude-checks: 'plugin_readme,non_blocking_scripts,enqueued_scripts_scope'
+          ignore-codes: 'mismatched_plugin_name,stable_tag_mismatch,EnqueuedScriptsScope,NonBlockingScripts.NoStrategy'
 
   composer-audit:
     name: composer audit

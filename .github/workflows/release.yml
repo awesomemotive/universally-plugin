@@ -134,9 +134,8 @@ jobs:
         uses: wordpress/plugin-check-action@v1
         with:
           build-dir: build/staging/${{ env.SLUG }}
-          # plugin_readme covers both the intentional name difference (long SEO name in readme vs
-          # short in header) and the intentional Stable-tag-vs-Version mismatch on prereleases.
-          exclude-checks: 'plugin_readme,non_blocking_scripts,enqueued_scripts_scope'
+          # See ci.yml for per-code rationale.
+          ignore-codes: 'mismatched_plugin_name,stable_tag_mismatch,EnqueuedScriptsScope,NonBlockingScripts.NoStrategy'
 
       - name: Upload staging artifact
         uses: actions/upload-artifact@v4
