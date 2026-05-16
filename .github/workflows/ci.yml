@@ -1,4 +1,4 @@
-name: CI
+name: Pull Request
 
 on:
   pull_request:
@@ -47,8 +47,8 @@ jobs:
             -level=warning \
             -fail-level=error
 
-  plugin-check:
-    name: WordPress Plugin Check
+  build-and-preview:
+    name: Build, check & Playground preview
     runs-on: ubuntu-latest
     env:
       SLUG: universally-language-translation-multilingual-tool
