@@ -133,7 +133,7 @@ jobs:
           path: build/check
           retention-days: 14
 
-      - name: Compose Playground link
+      - name: Compose Playground links
         if: always() && steps.upload.outcome == 'success'
         id: playground
         run: |
@@ -141,9 +141,22 @@ jobs:
           ZIP_URL="https://nightly.link/${{ github.repository }}/actions/artifacts/${{ steps.upload.outputs.artifact-id }}.zip"
           BLUEPRINT='{"landingPage":"/wp-admin/plugins.php","login":true,"steps":[{"step":"installPlugin","pluginData":{"resource":"url","url":"'"${ZIP_URL}"'"}}]}'
           ENCODED=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$BLUEPRINT")
+          link() { echo "[open](https://playground.wordpress.net/?php=$1&wp=$2#${ENCODED})"; }
+
+          TABLE=$(cat <<EOF
+          | WP \ PHP | 7.4 | 8.0 | 8.1 | 8.2 | 8.3 |
+          |---|---|---|---|---|---|
+          | 6.4 | $(link 7.4 6.4) | — | — | — | — |
+          | latest | $(link 7.4 latest) | $(link 8.0 latest) | $(link 8.1 latest) | $(link 8.2 latest) | $(link 8.3 latest) |
+          EOF
+          )
+
+          DELIM="EOF_$(date +%s)"
           {
-            echo "url=https://playground.wordpress.net/?php=8.0#${ENCODED}"
             echo "zip_url=${ZIP_URL}"
+            echo "table<<${DELIM}"
+            echo "$TABLE"
+            echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Sticky Playground comment
@@ -154,7 +167,9 @@ jobs:
           message: |
             🚀 **Test this PR in WordPress Playground**
 
-            [Open in Playground](${{ steps.playground.outputs.url }}) — auto-installs the plugin built from this branch.
+            Each link auto-installs the plugin built from this branch into a fresh WP at the given version combo.
+
+            ${{ steps.playground.outputs.table }}
 
             Direct zip download: ${{ steps.playground.outputs.zip_url }}
 

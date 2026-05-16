@@ -85,7 +85,7 @@ test.describe('Universally smoke', () => {
   test('front-end home renders without a fatal error', async ({ page }) => {
     const consoleErrors = attachConsoleGuard(page);
     const res = await page.goto('/');
-    expect(res?.status(), 'front-end should not 5xx').toBeLessThan(500);
+    expect(res?.ok(), 'front-end should return a successful response').toBeTruthy();
 
     // Even a 200 can carry a WSOD-style fatal in the body; check copy too.
     await expectNoFatalCopy(page);
