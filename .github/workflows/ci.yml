@@ -66,6 +66,15 @@ jobs:
           cache: 'npm'
           cache-dependency-path: plugin/package-lock.json
 
+      - name: Build panel JS + POT
+        working-directory: plugin
+        run: |
+          npm ci
+          npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
+          # POT is a generated artifact (not committed to source); regenerate so it
+          # ships in the staged tree the same way release.yml does it.
+          npm run makepot
+
       - name: Stage plugin under wp.org slug
         id: stage
         run: |
@@ -84,11 +93,6 @@ jobs:
           mkdir -p "$STAGE/panel"
           cp -r plugin/panel/src    "$STAGE/panel/src"
           cp plugin/composer.json   "$STAGE/"
-
-          cd plugin
-          npm ci
-          npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
-          cd -
 
           mkdir -p "$STAGE/panel/build"
           cp plugin/panel/build/index.js         "$STAGE/panel/build/"
