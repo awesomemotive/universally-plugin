@@ -67,6 +67,7 @@ jobs:
           cache-dependency-path: plugin/package-lock.json
 
       - name: Stage plugin under wp.org slug
+        id: stage
         run: |
           set -euo pipefail
           STAGE="build/check/${SLUG}"
@@ -112,6 +113,45 @@ jobs:
           # - EnqueuedScriptsScope, NonBlockingScripts.NoStrategy: accepted perf warnings on the
           #   language switcher script.
           ignore-codes: 'mismatched_plugin_name,stable_tag_mismatch,EnqueuedScriptsScope,NonBlockingScripts.NoStrategy'
+
+      - name: Upload built plugin as PR artifact
+        if: always() && steps.stage.outcome == 'success' && github.event_name == 'pull_request'
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SLUG }}-pr-${{ github.event.pull_request.number }}
+          # Uploading `build/check` (not the inner slug dir) preserves the wrapping
+          # ${SLUG}/ folder inside the artifact zip — which is what WP/Playground
+          # expects when installing a plugin from a URL.
+          path: build/check
+          retention-days: 14
+
+      - name: Compose Playground link
+        if: always() && steps.upload.outcome == 'success'
+        id: playground
+        run: |
+          set -euo pipefail
+          ZIP_URL="https://nightly.link/${{ github.repository }}/actions/artifacts/${{ steps.upload.outputs.artifact-id }}.zip"
+          BLUEPRINT='{"landingPage":"/wp-admin/plugins.php","login":true,"steps":[{"step":"installPlugin","pluginData":{"resource":"url","url":"'"${ZIP_URL}"'"}}]}'
+          ENCODED=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$BLUEPRINT")
+          {
+            echo "url=https://playground.wordpress.net/?php=8.0#${ENCODED}"
+            echo "zip_url=${ZIP_URL}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Sticky Playground comment
+        if: always() && steps.playground.outcome == 'success'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-playground
+          message: |
+            🚀 **Test this PR in WordPress Playground**
+
+            [Open in Playground](${{ steps.playground.outputs.url }}) — auto-installs the plugin built from this branch.
+
+            Direct zip download: ${{ steps.playground.outputs.zip_url }}
+
+            Built from `${{ github.event.pull_request.head.sha }}`. Artifact expires in 14 days.
 
   composer-audit:
     name: composer audit
