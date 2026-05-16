@@ -187,16 +187,19 @@ jobs:
             --reset \
             > tests/playground/wp-now.log 2>&1 &
           echo $! > tests/playground/wp-now.pid
-          # Probe content, not just status — confirms a real WP login page (not a
-          # stray service on the runner). 4 minutes for first-run downloads.
+          # Probe via localhost (wp-now binds to :: dual-stack; localhost picks
+          # whichever family works). -L follows install-wizard redirects.
           for i in $(seq 1 240); do
-            if curl -fsS http://127.0.0.1:12345/wp-login.php 2>/dev/null | grep -q "user_login"; then
+            if curl -fsSL "http://localhost:12345/" -o /dev/null 2>/dev/null; then
               echo "wp-now ready after ${i}s"
               exit 0
             fi
             sleep 1
           done
-          echo "wp-now never responded with a WP login page" >&2
+          echo "wp-now never responded" >&2
+          echo "--- listening sockets ---" >&2
+          ss -ltn || netstat -tln || true
+          echo "--- wp-now.log ---" >&2
           tail -n 200 tests/playground/wp-now.log >&2 || true
           exit 1
 

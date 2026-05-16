@@ -10,7 +10,7 @@ export default defineConfig({
   outputDir: 'results',
   globalSetup: require.resolve('./global-setup'),
   use: {
-    baseURL: `http://127.0.0.1:${PORT}`,
+    baseURL: `http://localhost:${PORT}`,
     storageState: 'auth.json',
     viewport: { width: 1440, height: 900 },
     locale: 'en-US',
