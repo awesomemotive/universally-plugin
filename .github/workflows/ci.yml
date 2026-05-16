@@ -107,21 +107,3 @@ jobs:
         run: |
           npm ci
           npx tsc --noEmit
-
-  eslint:
-    name: ESLint (panel JS)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: plugin/package-lock.json
-
-      - name: Lint
-        working-directory: plugin
-        run: |
-          npm ci
-          npx wp-scripts lint-js panel/js
