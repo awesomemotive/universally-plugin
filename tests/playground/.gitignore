@@ -2,3 +2,5 @@ node_modules/
 screenshots/
 results/
 auth.json
+wp-now.log
+wp-now.pid
