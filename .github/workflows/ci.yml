@@ -80,6 +80,7 @@ jobs:
           cp -r plugin/includes     "$STAGE/includes"
           cp -r plugin/assets       "$STAGE/assets"
           cp -r plugin/languages    "$STAGE/languages"
+          mkdir -p "$STAGE/panel"
           cp -r plugin/panel/src    "$STAGE/panel/src"
           cp plugin/composer.json   "$STAGE/"
 
