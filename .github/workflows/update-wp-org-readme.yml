@@ -1,0 +1,91 @@
+name: Update wp.org readme
+run-name: Update wp.org readme @ ${{ github.sha }}
+
+# Pushes `plugin/readme.txt` to wp.org SVN's `trunk/readme.txt`. No code, no
+# version bump, no tags touched. Use this when you only want to refresh the
+# wp.org plugin page's metadata (Tested up to, description, changelog
+# polish, screenshots section, etc.).
+#
+# Optional `tested_up_to` input: bumps the "Tested up to" line in master
+# first, commits, and pushes. Leave empty to just sync the current
+# `plugin/readme.txt` from master to wp.org.
+#
+# Requires the same SVN_USERNAME / SVN_PASSWORD secrets as ship-to-wp-org.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tested_up_to:
+        description: 'Optional: new "Tested up to" version (e.g. 6.9). Leave empty to push current readme as-is.'
+        required: false
+        default: ''
+
+env:
+  SLUG: universally-language-translation-multilingual-tool
+
+permissions:
+  contents: write   # we may push a bump commit to master
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install svn
+        run: sudo apt-get update -y && sudo apt-get install -y subversion
+
+      - name: Bump "Tested up to" (if input provided)
+        if: inputs.tested_up_to != ''
+        run: |
+          set -euo pipefail
+          NEW="${{ inputs.tested_up_to }}"
+          # Accept X.Y or X.Y.Z.
+          if ! [[ "$NEW" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+              echo "::error::Invalid 'Tested up to' value: '${NEW}'. Expected semver like 6.9 or 6.9.1."
+              exit 1
+          fi
+          sed -i "s/^Tested up to:.*/Tested up to: ${NEW}/" plugin/readme.txt
+          if git diff --quiet plugin/readme.txt; then
+              echo "readme.txt already says 'Tested up to: ${NEW}'. Nothing to commit."
+          else
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add plugin/readme.txt
+              git commit -m "Bump 'Tested up to' to ${NEW}"
+              git push
+          fi
+
+      - name: Sync trunk/readme.txt on wp.org SVN
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          SVN_DIR="${RUNNER_TEMP}/svn-${SLUG}"
+          # Sparse checkout the SVN root, then deepen only the readme inside trunk.
+          svn checkout --depth=immediates "https://plugins.svn.wordpress.org/${SLUG}/" "$SVN_DIR"
+          svn update --set-depth=files "$SVN_DIR/trunk"
+
+          cp plugin/readme.txt "$SVN_DIR/trunk/readme.txt"
+          cd "$SVN_DIR/trunk"
+
+          if [[ -z "$(svn stat readme.txt)" ]]; then
+              echo "Nothing to commit — trunk/readme.txt already matches master."
+              exit 0
+          fi
+
+          # Defense-in-depth: only trunk/readme.txt may be staged. Aborts if
+          # anything else somehow ended up modified.
+          UNEXPECTED=$(cd "$SVN_DIR" && svn stat | awk 'NF && $NF != "trunk/readme.txt" { print }')
+          if [ -n "$UNEXPECTED" ]; then
+              echo "::error::Refusing to commit — changes detected outside trunk/readme.txt:"
+              echo "$UNEXPECTED"
+              exit 1
+          fi
+
+          svn status
+          svn commit \
+              -m "Update readme.txt from GitHub (${GITHUB_SHA::7})" \
+              --non-interactive --no-auth-cache \
+              --username "$SVN_USERNAME" --password "$SVN_PASSWORD"
