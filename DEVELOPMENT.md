@@ -58,7 +58,7 @@ Two steps:
    Follow the prompts (bump type, channel, type-to-confirm). When done, the tag is on GitHub but **nothing has shipped yet**.
 
 2. **On GitHub**, deploy it:
-   - Open **Actions → Release → Run workflow** ([direct link](https://github.com/awesomemotive/universally-plugin/actions/workflows/release.yml)).
+   - Open **Actions → Ship to wp.org → Run workflow** ([direct link](https://github.com/awesomemotive/universally-plugin/actions/workflows/ship-to-wp-org.yml)).
    - Pick the tag from the dropdown (latest 5 are listed; older ones go in `custom_tag`).
    - Run.
 
@@ -93,7 +93,7 @@ A red confirmation banner appears before anything is pushed; you have to type ba
 
 ### Details — Deploy workflow
 
-`release.yml` is manual-only — tag pushes don't auto-ship. When you run it:
+`ship-to-wp-org.yml` is manual-only — tag pushes don't auto-ship. When you run it:
 
 1. CI checks out the exact tag you picked.
 2. `scripts/build.sh` produces the production zip (same script local `npm run build` runs).
@@ -101,7 +101,7 @@ A red confirmation banner appears before anything is pushed; you have to type ba
 4. Stable tag → wp.org SVN deploy via [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy). Prereleases skip this step.
 5. GitHub Release published with the zip + a one-click WordPress Playground link.
 
-The dropdown of recent tags is kept current by `.github/workflows/refresh-release-options.yml`, which runs on every tag push and rewrites the options block in `release.yml`.
+The dropdown of recent tags is kept current by `.github/workflows/refresh-tag-list.yml`, which runs on every tag push and rewrites the options block in `ship-to-wp-org.yml`.
 
 Why two steps instead of auto-deploy on tag push? Tagging is reversible (delete the tag and re-push); SVN deploys aren't. The manual click is a deliberate guard.
 
@@ -113,7 +113,7 @@ npm run build           # → bash scripts/build.sh
 bash scripts/build.sh 1.0.4-test
 ```
 
-Runs the exact same recipe CI uses (`scripts/build.sh` is invoked from both `release.yml` and `ci.yml`). Output: `dist/<slug>-<version>.zip` and a staged tree at `build/staging/<slug>/`. If no version is given, the current `UNIVERSALLY_VERSION` from `universally.php` is used.
+Runs the exact same recipe CI uses (`scripts/build.sh` is invoked from both `ship-to-wp-org.yml` and `validate-pr.yml`). Output: `dist/<slug>-<version>.zip` and a staged tree at `build/staging/<slug>/`. If no version is given, the current `UNIVERSALLY_VERSION` from `universally.php` is used.
 
 Required repo secrets for SVN deploy: `SVN_USERNAME` and `SVN_PASSWORD` (wp.org account credentials).
 

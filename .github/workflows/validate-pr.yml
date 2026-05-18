@@ -1,4 +1,4 @@
-name: Pull Request
+name: Validate PR
 
 on:
   pull_request:
@@ -81,7 +81,7 @@ jobs:
           # - mismatched_plugin_name: intentional (long SEO name in readme vs short in header).
           # - stable_tag_mismatch: source enters this state during "prerelease in progress" windows
           #   (Version bumped to vX.Y.Z-beta.N, Stable tag stays at last shipped stable). The real
-          #   gate is in release.yml, where this is enforced on stable-tag pushes.
+          #   gate is in ship-to-wp-org.yml, where this is enforced on stable-tag pushes.
           # - EnqueuedScriptsScope, NonBlockingScripts.NoStrategy: accepted perf warnings on the
           #   language switcher script.
           ignore-codes: 'mismatched_plugin_name,stable_tag_mismatch,EnqueuedScriptsScope,NonBlockingScripts.NoStrategy'
