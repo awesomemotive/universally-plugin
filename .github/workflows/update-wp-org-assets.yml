@@ -6,11 +6,18 @@ run-name: Update wp.org assets @ ${{ github.sha }}
 # touched, no new plugin version cut. Use this when you only want to refresh
 # the marketplace page without shipping code.
 #
-# Requires the same SVN_USERNAME / SVN_PASSWORD secrets used by
-# ship-to-wp-org.yml.
+# Done with explicit SVN commands rather than 10up's asset-update action
+# because that action also rsyncs the repo root into trunk/, which would
+# delete the deployed vendor/ (composer install output) and fail. Our plugin
+# code lives in plugin/, not at repo root.
+#
+# Requires SVN_USERNAME / SVN_PASSWORD secrets (same as ship-to-wp-org.yml).
 
 on:
   workflow_dispatch:
+
+env:
+  SLUG: universally-language-translation-multilingual-tool
 
 jobs:
   push:
@@ -18,10 +25,48 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Sync assets/ to wp.org SVN
-        uses: 10up/action-wordpress-plugin-asset-update@stable
+      - name: Install svn
+        run: sudo apt-get update -y && sudo apt-get install -y subversion
+
+      - name: Sync assets/ to wp.org SVN (assets only, no trunk/tags)
         env:
-          SLUG: universally-language-translation-multilingual-tool
-          ASSETS_DIR: assets
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          SVN_DIR="${RUNNER_TEMP}/svn-${SLUG}"
+          # Sparse checkout: only the repo root, then deepen just assets/.
+          svn checkout --depth=immediates "https://plugins.svn.wordpress.org/${SLUG}/" "$SVN_DIR"
+          svn update --set-depth=infinity "$SVN_DIR/assets"
+
+          # Replace SVN's assets/ with our repo's assets/.
+          rsync -rc --delete assets/ "$SVN_DIR/assets/"
+
+          cd "$SVN_DIR/assets"
+
+          # Image mime types so wp.org serves them inline instead of as downloads.
+          set_mime() {
+              local pattern="$1" mime="$2"
+              find . -maxdepth 1 -name "$pattern" -print0 | xargs -0r svn propset svn:mime-type "$mime" || true
+          }
+          set_mime '*.png'  image/png
+          set_mime '*.jpg'  image/jpeg
+          set_mime '*.jpeg' image/jpeg
+          set_mime '*.gif'  image/gif
+          set_mime '*.svg'  image/svg+xml
+
+          # Stage adds and deletes against the local rsync result.
+          svn add . --force --auto-props --parents --depth=infinity -q
+          svn status | awk '$1=="!" {print $2}' | xargs -r svn rm
+
+          # Bail early if nothing actually changed.
+          if [[ -z "$(svn stat)" ]]; then
+              echo "Nothing to commit."
+              exit 0
+          fi
+
+          svn status
+          svn commit \
+              -m "Update assets from GitHub (${GITHUB_SHA::7})" \
+              --non-interactive --no-auth-cache \
+              --username "$SVN_USERNAME" --password "$SVN_PASSWORD"
