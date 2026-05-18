@@ -72,7 +72,22 @@ Examples:
 - patch + beta from `1.0.1` → `1.0.2-beta.1`
 - minor + rc from `1.0.1` → `1.1.0-rc.1` (or `.2` if `v1.1.0-rc.1` already exists)
 
-The script bumps `plugin/universally.php`, `plugin/package.json`, and `plugin/readme.txt` (`Stable tag` only for stable releases), commits, creates an annotated `vX.Y.Z` tag, and pushes. It does NOT build — `scripts/build.sh` is the single source of truth for that, called by CI on the tag push.
+The script bumps `plugin/universally.php`, `plugin/package.json`, and `plugin/readme.txt` (`Stable tag` only for stable releases), commits, creates an annotated `vX.Y.Z` tag, and pushes. It does NOT build and **does NOT deploy** — the tag push alone doesn't trigger CI. Deployment is a separate manual step (next section).
+
+## Deploying a release
+
+Tagging is the first half; shipping is the second. After `npm run release` pushes the tag, deploy it from the GitHub UI:
+
+1. Open **Actions → Release → Run workflow**.
+2. Enter the tag name (e.g. `v1.0.4` or `v1.0.4-beta.1`).
+3. Run.
+
+CI (`.github/workflows/release.yml`) checks out that exact tag, runs `scripts/build.sh`, hits the phpcs + WP Plugin Check gates, then:
+
+- **Stable tag** (`vX.Y.Z`) → builds + deploys to wp.org SVN trunk + `tags/X.Y.Z` + `assets/` via [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy) + creates a GitHub Release with the zip and a one-click WordPress Playground link.
+- **Pre-release tag** (`vX.Y.Z-beta.N` / `-rc.N`) → builds + creates a GitHub Release (marked pre-release) with the zip + Playground link. Skips SVN.
+
+Manual two-step is deliberate: it prevents an accidental local `npm run release` from auto-shipping. Tagging is reversible (delete the tag); SVN deploys are not.
 
 ## Build the production zip locally
 
@@ -84,20 +99,7 @@ bash scripts/build.sh 1.0.4-test
 
 Runs the exact same recipe CI uses (`scripts/build.sh` is invoked from both `release.yml` and `ci.yml`). Output: `dist/<slug>-<version>.zip` and a staged tree at `build/staging/<slug>/`. If no version is given, the current `UNIVERSALLY_VERSION` from `universally.php` is used.
 
-CI (`.github/workflows/release.yml`) picks up the tag push:
-
-- **Stable tag** (`vX.Y.Z`) → builds, deploys to wp.org SVN trunk + `tags/X.Y.Z` + `assets/` via [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy), creates a GitHub Release with the zip + a one-click WordPress Playground link.
-- **Pre-release tag** (`vX.Y.Z-beta.N` / `-rc.N`) → builds, creates a GitHub Release (marked pre-release) with the zip + Playground link. Skips SVN.
-
-Required repo secrets: `SVN_USERNAME` and `SVN_PASSWORD` (wp.org account credentials).
-
-### Manual prerelease (no local commit)
-
-To produce a downloadable test zip from a feature branch without adding a "Release …" commit to its history, dispatch the **Release** workflow from the Actions tab:
-
-- Actions → **Release** → **Run workflow** → pick the branch → enter a version like `1.0.3-beta.1` (must include a `-` suffix; stable cuts are rejected on dispatch).
-
-CI tags the workflow's commit as `vX.Y.Z-...`, builds, and publishes a GitHub Release (marked pre-release) with the zip + Playground link. Skips SVN.
+Required repo secrets for SVN deploy: `SVN_USERNAME` and `SVN_PASSWORD` (wp.org account credentials).
 
 ## Translations
 

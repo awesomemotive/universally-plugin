@@ -247,7 +247,9 @@ main() {
     git push --follow-tags
 
     echo
-    print_message "Pushed v${new_version}. CI will build and deploy." "$GREEN"
+    print_message "Pushed v${new_version}." "$GREEN"
+    print_message "To ship: Actions → Release → Run workflow → tag: v${new_version}" "$CYAN"
+    print_message "https://github.com/awesomemotive/universally-plugin/actions/workflows/release.yml" "$CYAN"
 }
 
 main "$@"
