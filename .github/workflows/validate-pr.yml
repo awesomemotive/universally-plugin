@@ -203,17 +203,28 @@ jobs:
           # preferredVersions: the @wp-playground/cli ignores that field and
           # only honors its CLI flag. The blueprint setting is kept for
           # portability (playground.wordpress.net URL loads do honor it).
-          nohup npx --yes @wp-playground/cli@latest server \
+          #
+          # Detachment specifics:
+          # - `setsid` puts the server in a new session so it doesn't share a
+          #   process group with this shell.
+          # - `</dev/null` closes stdin on the child so the runner doesn't wait
+          #   on an open pipe at step end.
+          # - `disown` removes the bg job from the shell's job table so `bash -e`
+          #   doesn't wait for it when the script returns.
+          setsid nohup npx --yes @wp-playground/cli@latest server \
             --mount="$PLUGIN_DIR:/wordpress/wp-content/plugins/${SLUG}" \
             --port=12345 \
             --php=7.4 \
             --blueprint=tests/playground/blueprint.json \
-            > tests/playground/playground.log 2>&1 &
-          echo $! > tests/playground/playground.pid
-          # Probe via localhost (the CLI binds to dual-stack). -L follows
-          # install-wizard redirects.
-          for i in $(seq 1 240); do
-            if curl -fsSL "http://localhost:12345/" -o /dev/null 2>/dev/null; then
+            > tests/playground/playground.log 2>&1 </dev/null &
+          BOOT_PID=$!
+          echo "$BOOT_PID" > tests/playground/playground.pid
+          disown "$BOOT_PID" 2>/dev/null || true
+
+          # Probe localhost with a per-request timeout so a slow response can't
+          # eat the whole budget. 90s total cap is plenty for cold-boot.
+          for i in $(seq 1 90); do
+            if curl -fsS --max-time 2 -o /dev/null "http://localhost:12345/" 2>/dev/null; then
               echo "Playground ready after ${i}s"
               exit 0
             fi
