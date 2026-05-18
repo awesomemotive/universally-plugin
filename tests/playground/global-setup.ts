@@ -2,7 +2,8 @@ import { chromium, type FullConfig } from '@playwright/test';
 import path from 'node:path';
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
-  const baseURL = `http://localhost:${process.env.WP_PORT ?? '12345'}`;
+  // Match WP's siteurl in Playground (127.0.0.1, not localhost) to avoid CORS.
+  const baseURL = `http://127.0.0.1:${process.env.WP_PORT ?? '12345'}`;
   const browser = await chromium.launch();
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
