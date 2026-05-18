@@ -45,16 +45,22 @@ sed_in_place() {
 }
 
 # ----- 1. Build panel JS -----
+# Skip `npm ci` when node_modules is already populated. CI restores it from
+# actions/cache (keyed on package-lock.json); locals keep theirs from prior
+# `npm install`. `npm ci` always wipes and reinstalls, so guarding here avoids
+# the most expensive step on cache-hit runs.
 (
     cd "${PLUGIN_DIR}"
-    npm ci
+    if [ ! -d node_modules ]; then
+        npm ci
+    fi
     npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
 )
 
-# ----- 2. Generate POT (plugin/languages/<slug>.pot) -----
-( cd "${PLUGIN_DIR}" && npm run makepot )
+# No POT step: wp.org's translate.wordpress.org auto-extracts the POT from
+# plugin source on every release, so shipping one in the zip is duplicate work.
 
-# ----- 3. Stage production tree -----
+# ----- 2. Stage production tree -----
 # Only clean our own staging parent — don't touch other build/* dirs developers
 # might have (e.g. test scratchpads, IDE artifacts).
 rm -rf "${STAGE_PARENT}" && mkdir -p "${STAGE}"
@@ -66,7 +72,6 @@ cp "${PLUGIN_DIR}/readme.txt"      "${STAGE}/"
 cp -r "${PLUGIN_DIR}/app"          "${STAGE}/app"
 cp -r "${PLUGIN_DIR}/includes"     "${STAGE}/includes"
 cp -r "${PLUGIN_DIR}/assets"       "${STAGE}/assets"
-cp -r "${PLUGIN_DIR}/languages"    "${STAGE}/languages"
 
 mkdir -p "${STAGE}/panel"
 cp -r "${PLUGIN_DIR}/panel/src" "${STAGE}/panel/src"
@@ -81,7 +86,7 @@ done
 
 cp "${PLUGIN_DIR}/composer.json" "${STAGE}/"
 
-# ----- 4. Version-stamp the staged files (never touch source) -----
+# ----- 3. Version-stamp the staged files (never touch source) -----
 sed_in_place "s/\* Version:.*/* Version: ${VERSION}/" "${STAGE}/universally.php"
 sed_in_place "s/const UNIVERSALLY_VERSION = .*/const UNIVERSALLY_VERSION = '${VERSION}';/" "${STAGE}/universally.php"
 # Stable tag only updates for stable releases (no '-' suffix).
@@ -89,14 +94,14 @@ if [[ "${VERSION}" != *-* ]]; then
     sed_in_place "s/^Stable tag:.*/Stable tag: ${VERSION}/" "${STAGE}/readme.txt"
 fi
 
-# ----- 5. Composer production deps -----
+# ----- 4. Composer production deps -----
 ( cd "${STAGE}" && composer install --no-dev --optimize-autoloader --no-interaction --quiet )
 rm -f "${STAGE}/composer.lock"
 
-# ----- 6. Strip dev/OS files -----
+# ----- 5. Strip dev/OS files -----
 find "${STAGE}" \( -name ".DS_Store" -o -name ".gitkeep" -o -name "Thumbs.db" -o -name "*.map" \) -delete 2>/dev/null || true
 
-# ----- 7. Zip -----
+# ----- 6. Zip -----
 mkdir -p "${DIST_DIR}"
 ZIP_PATH="${DIST_DIR}/${SLUG}-${VERSION}.zip"
 ( cd "${STAGE_PARENT}" && zip -r "../../${ZIP_PATH}" "${SLUG}" -q )

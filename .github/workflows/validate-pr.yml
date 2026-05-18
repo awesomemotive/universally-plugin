@@ -107,6 +107,24 @@ jobs:
           cache: 'npm'
           cache-dependency-path: plugin/package-lock.json
 
+      # Skip `npm ci` (~25s) when the lockfile hasn't changed since the last run.
+      # build.sh detects an existing node_modules and won't re-install.
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: plugin/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('plugin/package-lock.json') }}
+
+      # Cache composer's package cache so `composer install` in the staged tree
+      # reuses tarballs from prior runs.
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ runner.os }}-${{ hashFiles('plugin/composer.json') }}
+          restore-keys: |
+            composer-${{ runner.os }}-
+
       - name: Build production zip
         id: stage
         run: bash scripts/build.sh
