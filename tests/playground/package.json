@@ -8,6 +8,6 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
-    "@wp-now/wp-now": "^0.1.74"
+    "@wp-playground/cli": "^1.2.0"
   }
 }
