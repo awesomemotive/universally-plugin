@@ -248,8 +248,8 @@ main() {
 
     echo
     print_message "Pushed v${new_version}." "$GREEN"
-    print_message "To ship: Actions → Release → Run workflow → tag: v${new_version}" "$CYAN"
-    print_message "https://github.com/awesomemotive/universally-plugin/actions/workflows/release.yml" "$CYAN"
+    print_message "To ship: Actions → Ship to wp.org → Run workflow → tag: v${new_version}" "$CYAN"
+    print_message "https://github.com/awesomemotive/universally-plugin/actions/workflows/ship-to-wp-org.yml" "$CYAN"
 }
 
 main "$@"

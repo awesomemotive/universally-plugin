@@ -1,9 +1,9 @@
-name: Refresh release dropdown
+name: Refresh tag list
 
-# Updates the `tag` choice options in release.yml with the 5 most recent tags.
+# Updates the `tag` choice options in ship-to-wp-org.yml with the 5 most recent tags.
 # Runs after every tag push (so a freshly cut tag appears in the picker for the
 # next deploy). The replaced block sits between the `# >>> recent-tags` and
-# `# <<< recent-tags` markers — nothing else in release.yml is touched.
+# `# <<< recent-tags` markers — nothing else in ship-to-wp-org.yml is touched.
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
 
       - name: Rebuild dropdown options
         env:
-          WORKFLOW: .github/workflows/release.yml
+          WORKFLOW: .github/workflows/ship-to-wp-org.yml
         run: |
           set -euo pipefail
           TAGS_BLOCK=$(git tag --sort=-creatordate | head -5 | awk '{ print "          - " $0 }')
@@ -53,12 +53,12 @@ jobs:
 
       - name: Commit if changed
         run: |
-          if git diff --quiet .github/workflows/release.yml; then
+          if git diff --quiet .github/workflows/ship-to-wp-org.yml; then
             echo "No changes to commit"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/release.yml
+          git add .github/workflows/ship-to-wp-org.yml
           git commit -m "ci: refresh release dropdown with latest tags"
           git push

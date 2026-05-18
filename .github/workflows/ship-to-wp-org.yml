@@ -1,5 +1,5 @@
-name: Release
-run-name: Release ${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}
+name: Ship to wp.org
+run-name: Ship ${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}
 
 # Release is manual-only. Tag pushes do NOT auto-deploy — you ship by
 # opening Actions → Release → Run workflow and picking the tag.
@@ -12,7 +12,7 @@ on:
         type: choice
         required: true
         options:
-          # >>> recent-tags (auto-managed by .github/workflows/refresh-release-options.yml — DO NOT EDIT MANUALLY)
+          # >>> recent-tags (auto-managed by .github/workflows/refresh-tag-list.yml — DO NOT EDIT MANUALLY)
           - v1.0.3
           - v1.0.3-beta.1
           - v1.0.2-beta.1
