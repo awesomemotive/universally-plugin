@@ -2,6 +2,7 @@
   "$schema": "https://playground.wordpress.net/blueprint-schema.json",
   "meta": {
     "title": "Universally — AI Translation",
+    "author": "smub",
     "description": "Translate your WordPress site into 110+ languages with AI. Use your own API key from universally.com to enable translations.",
     "categories": ["Translation"]
   },
