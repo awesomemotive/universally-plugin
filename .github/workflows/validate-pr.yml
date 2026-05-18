@@ -255,10 +255,15 @@ jobs:
           #
           # We run from tests/playground so npx finds the cached @wp-playground/cli
           # in local node_modules (devDep) rather than fetching it from npm.
+          # Pin --wp explicitly. The CLI's "latest" recently resolved to a WP
+          # release candidate (7.0-RC4) that hangs during boot under Playground.
+          # The blueprint's preferredVersions is ignored by the CLI; same story
+          # as --php (it only honors its own flags).
           setsid nohup npx --yes @wp-playground/cli server \
             --mount="$PLUGIN_DIR:/wordpress/wp-content/plugins/${SLUG}" \
             --port=12345 \
             --php=7.4 \
+            --wp=6.7 \
             --blueprint=blueprint.json \
             > playground.log 2>&1 </dev/null &
           BOOT_PID=$!
