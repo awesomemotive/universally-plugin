@@ -7,7 +7,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  // wp-now auto-logs in the admin user by default; try /wp-admin/ first.
+  // Playground CLI auto-logs in the admin user via blueprint.json (login: true).
   await page.goto('/wp-admin/', { waitUntil: 'domcontentloaded' });
 
   if (/wp-login\.php/.test(page.url())) {
