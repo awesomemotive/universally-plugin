@@ -105,6 +105,20 @@ The dropdown of recent tags is kept current by `.github/workflows/refresh-tag-li
 
 Why two steps instead of auto-deploy on tag push? Tagging is reversible (delete the tag and re-push); SVN deploys aren't. The manual click is a deliberate guard.
 
+## Updating wp.org assets only (no release)
+
+The `assets/` directory (Live Preview blueprint, banners, icons, screenshots) lives in a separate SVN path on wp.org that's independent of the plugin code. You can refresh it without cutting a new plugin version.
+
+**To update:**
+
+1. Edit anything under `assets/` and merge to master.
+2. Open **Actions → Update wp.org assets → Run workflow** ([direct link](https://github.com/awesomemotive/universally-plugin/actions/workflows/update-wp-org-assets.yml)).
+3. Run.
+
+That's it. `.github/workflows/update-wp-org-assets.yml` uses `10up/action-wordpress-plugin-asset-update` to sync `assets/` to wp.org's SVN `/assets/` path. No trunk/tags touched, no version bump, no GitHub Release. Uses the same `SVN_USERNAME` / `SVN_PASSWORD` secrets as the main deploy.
+
+Common cases: fix a typo in the Live Preview blueprint, swap banners/screenshots, update icons.
+
 ## Build the production zip locally
 
 ```sh
