@@ -126,7 +126,7 @@ stage_production_tree() {
     cp -r "${PLUGIN_DIR}/app"          "${stage}/${PLUGIN_NAME}/app"
     cp -r "${PLUGIN_DIR}/includes"     "${stage}/${PLUGIN_NAME}/includes"
     cp -r "${PLUGIN_DIR}/assets"       "${stage}/${PLUGIN_NAME}/assets"
-    cp -r "${PLUGIN_DIR}/languages"    "${stage}/${PLUGIN_NAME}/languages"
+#    cp -r "${PLUGIN_DIR}/languages"    "${stage}/${PLUGIN_NAME}/languages"
 
     mkdir -p "${stage}/${PLUGIN_NAME}/panel/build"
     cp "${PLUGIN_DIR}/panel/build/index.js"         "${stage}/${PLUGIN_NAME}/panel/build/"
