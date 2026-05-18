@@ -187,13 +187,42 @@ main() {
         exit 1
     fi
 
-    echo
-    print_message "Releasing v${new_version}..." "$GREEN"
-
     local is_stable=false
     if [[ ! "$new_version" =~ - ]]; then
         is_stable=true
     fi
+
+    # ===== Final confirmation =====
+    local branch action_summary
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    echo
+    print_message "╔════════════════════════════════════════════════════════════════╗" "$RED"
+    print_message "║                     ⚠  THIS IS A REAL RELEASE                  ║" "$RED"
+    print_message "╚════════════════════════════════════════════════════════════════╝" "$RED"
+    echo
+    print_message "  Version : v${new_version}" "$YELLOW"
+    print_message "  Branch  : ${branch}" "$YELLOW"
+    print_message "  Channel : $([ "$is_stable" = true ] && echo "STABLE  (wp.org SVN deploy will fire)" || echo "prerelease (SVN deploy is skipped)")" "$YELLOW"
+    echo
+    print_message "  About to:" "$NC"
+    if [ "$force_tag" = false ]; then
+        print_message "    1. Bump version in plugin/universally.php, plugin/package.json$([ "$is_stable" = true ] && echo ', plugin/readme.txt')" "$NC"
+        print_message "    2. Commit 'Release ${new_version}' on ${branch}" "$NC"
+        print_message "    3. Create annotated tag v${new_version}" "$NC"
+        print_message "    4. Push branch + tag to origin (CI takes over)" "$NC"
+    else
+        print_message "    1. Delete existing tag v${new_version} locally and on origin (if any)" "$NC"
+        print_message "    2. Create fresh annotated tag v${new_version} at current HEAD" "$NC"
+        print_message "    3. Push tag to origin (CI takes over)" "$NC"
+    fi
+    echo
+    read -rp "Type 'release ${new_version}' to confirm (or anything else to abort): " final_confirm
+    if [ "$final_confirm" != "release ${new_version}" ]; then
+        print_message "Aborted." "$RED"
+        exit 1
+    fi
+    echo
+    print_message "Releasing v${new_version}..." "$GREEN"
 
     # Bump source files (skipped on "rebuild" — current version is already correct).
     if [ "$force_tag" = false ]; then
