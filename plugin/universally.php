@@ -7,7 +7,6 @@
  * Author: benjaminprojas
  * Author URI: https://profiles.wordpress.org/benjaminprojas/
  * Text Domain: universally-language-translation-multilingual-tool
- * Domain Path: /languages
  * Requires at least: 6.0
  * Tested up to: 6.9
  * Requires PHP: 7.4
