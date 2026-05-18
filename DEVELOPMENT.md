@@ -119,6 +119,19 @@ That's it. `.github/workflows/update-wp-org-assets.yml` uses `10up/action-wordpr
 
 Common cases: fix a typo in the Live Preview blueprint, swap banners/screenshots, update icons.
 
+## Updating wp.org readme only (no release)
+
+For text-only edits to `readme.txt` — bumping "Tested up to", polishing the description, fixing a changelog typo — you don't need to cut a new plugin version. wp.org accepts `trunk/readme.txt` updates as long as `Stable tag` keeps pointing at the deployed version.
+
+**To update:**
+
+1. Open **Actions → Update wp.org readme → Run workflow** ([direct link](https://github.com/awesomemotive/universally-plugin/actions/workflows/update-wp-org-readme.yml)).
+2. Optional: provide a new `tested_up_to` value (e.g. `6.9`). When set, the workflow updates `plugin/readme.txt` on master first, commits, then pushes.
+3. Leave it empty to just sync whatever's currently in master's `plugin/readme.txt` to wp.org.
+4. Run.
+
+Same `SVN_USERNAME` / `SVN_PASSWORD` secrets. Only `trunk/readme.txt` is touched on the SVN side — no code, no tags, no version bump.
+
 ## Build the production zip locally
 
 ```sh
