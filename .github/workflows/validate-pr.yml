@@ -194,7 +194,7 @@ jobs:
 
       - name: Boot Playground CLI with staged plugin
         if: github.event_name == 'pull_request' && steps.stage.outcome == 'success'
-        id: playground
+        id: boot
         run: |
           set -euo pipefail
           PLUGIN_DIR="${{ github.workspace }}/build/staging/${SLUG}"
@@ -227,13 +227,13 @@ jobs:
           exit 1
 
       - name: Run Playwright smoke
-        if: steps.playground.outcome == 'success'
+        if: steps.boot.outcome == 'success'
         id: smoke
         working-directory: tests/playground
         run: npx playwright test --reporter=list
 
       - name: Dump Playground log on failure
-        if: failure() && steps.playground.outcome == 'success'
+        if: failure() && steps.boot.outcome == 'success'
         run: |
           echo "=== playground.log (tail) ==="
           tail -n 200 tests/playground/playground.log || true
@@ -241,7 +241,7 @@ jobs:
           grep -E "PHP (Fatal|Parse) error|Uncaught" tests/playground/playground.log || echo "(none found)"
 
       - name: Stop Playground
-        if: always() && steps.playground.outcome == 'success'
+        if: always() && steps.boot.outcome == 'success'
         run: |
           if [ -f tests/playground/playground.pid ]; then
             kill "$(cat tests/playground/playground.pid)" 2>/dev/null || true
