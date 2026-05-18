@@ -77,59 +77,8 @@ jobs:
       - name: phpcs (security + PHP 7.4 compat)
         run: phpcs
 
-      - name: Build panel JS
-        working-directory: plugin
-        run: |
-          npm ci
-          npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
-
-      - name: Generate POT
-        working-directory: plugin
-        run: npm run makepot
-
-      - name: Stage production tree
-        env:
-          VERSION: ${{ steps.parse.outputs.version }}
-        run: |
-          set -euo pipefail
-          STAGE="build/staging/${SLUG}"
-          rm -rf build && mkdir -p "$STAGE"
-
-          cp plugin/universally.php "$STAGE/"
-          cp plugin/uninstall.php   "$STAGE/"
-          cp plugin/config.php      "$STAGE/"
-          cp plugin/readme.txt      "$STAGE/"
-          cp -r plugin/app          "$STAGE/app"
-          cp -r plugin/includes     "$STAGE/includes"
-          cp -r plugin/assets       "$STAGE/assets"
-          cp -r plugin/languages    "$STAGE/languages"
-
-          mkdir -p "$STAGE/panel/build"
-          cp plugin/panel/build/index.js         "$STAGE/panel/build/"
-          cp plugin/panel/build/index.asset.php  "$STAGE/panel/build/"
-          for f in plugin/panel/build/style-index*.css; do
-            [ -f "$f" ] && cp "$f" "$STAGE/panel/build/"
-          done
-          [ -d plugin/panel/build/blocks ] && cp -r plugin/panel/build/blocks "$STAGE/panel/build/blocks"
-          cp -r plugin/panel/src "$STAGE/panel/src"
-          cp plugin/composer.json "$STAGE/"
-
-          # Version-stamp the staged files (CI never modifies source).
-          sed -i "s/\* Version:.*/* Version: ${VERSION}/" "$STAGE/universally.php"
-          sed -i "s/const UNIVERSALLY_VERSION = .*/const UNIVERSALLY_VERSION = '${VERSION}';/" "$STAGE/universally.php"
-          # Only patch Stable tag for stable releases (no '-' in VERSION).
-          if [[ "${VERSION}" != *-* ]]; then
-            sed -i "s/^Stable tag:.*/Stable tag: ${VERSION}/" "$STAGE/readme.txt"
-          fi
-
-          (cd "$STAGE" && composer install --no-dev --optimize-autoloader --no-interaction --quiet)
-          rm -f "$STAGE/composer.lock"
-
-          find "$STAGE" \( -name ".DS_Store" -o -name ".gitkeep" -o -name "Thumbs.db" -o -name "*.map" \) -delete || true
-
-          mkdir -p dist
-          (cd build/staging && zip -r "../../dist/${SLUG}-${VERSION}.zip" "${SLUG}" -q)
-          ls -lh "dist/${SLUG}-${VERSION}.zip"
+      - name: Build production zip
+        run: bash scripts/build.sh "${{ steps.parse.outputs.version }}"
 
       - name: WordPress Plugin Check (hard gate)
         uses: wordpress/plugin-check-action@v1

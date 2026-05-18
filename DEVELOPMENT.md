@@ -72,7 +72,17 @@ Examples:
 - patch + beta from `1.0.1` → `1.0.2-beta.1`
 - minor + rc from `1.0.1` → `1.1.0-rc.1` (or `.2` if `v1.1.0-rc.1` already exists)
 
-The script bumps `plugin/universally.php`, `plugin/package.json`, and `plugin/readme.txt` (`Stable tag` only for stable releases), commits, creates an annotated `vX.Y.Z` tag, and pushes.
+The script bumps `plugin/universally.php`, `plugin/package.json`, and `plugin/readme.txt` (`Stable tag` only for stable releases), commits, creates an annotated `vX.Y.Z` tag, and pushes. It does NOT build — `scripts/build.sh` is the single source of truth for that, called by CI on the tag push.
+
+## Build the production zip locally
+
+```sh
+npm run build           # → bash scripts/build.sh
+# or with a specific version:
+bash scripts/build.sh 1.0.4-test
+```
+
+Runs the exact same recipe CI uses (`scripts/build.sh` is invoked from both `release.yml` and `ci.yml`). Output: `dist/<slug>-<version>.zip` and a staged tree at `build/staging/<slug>/`. If no version is given, the current `UNIVERSALLY_VERSION` from `universally.php` is used.
 
 CI (`.github/workflows/release.yml`) picks up the tag push:
 
