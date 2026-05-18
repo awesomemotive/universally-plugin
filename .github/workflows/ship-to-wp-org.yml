@@ -73,6 +73,20 @@ jobs:
           cache: 'npm'
           cache-dependency-path: plugin/package-lock.json
 
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: plugin/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('plugin/package-lock.json') }}
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ runner.os }}-${{ hashFiles('plugin/composer.json') }}
+          restore-keys: |
+            composer-${{ runner.os }}-
+
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '7.4'

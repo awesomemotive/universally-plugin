@@ -107,6 +107,24 @@ jobs:
           cache: 'npm'
           cache-dependency-path: plugin/package-lock.json
 
+      # Skip `npm ci` (~25s) when the lockfile hasn't changed since the last run.
+      # build.sh detects an existing node_modules and won't re-install.
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: plugin/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('plugin/package-lock.json') }}
+
+      # Cache composer's package cache so `composer install` in the staged tree
+      # reuses tarballs from prior runs.
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ runner.os }}-${{ hashFiles('plugin/composer.json') }}
+          restore-keys: |
+            composer-${{ runner.os }}-
+
       - name: Build production zip
         id: stage
         run: bash scripts/build.sh
@@ -185,11 +203,34 @@ jobs:
       # then asserts: plugin activates without a fatal, each of the three
       # settings tabs hydrates with fields, the REST namespace is registered,
       # and the front-end home doesn't WSOD.
+      # Cache the Playwright Chromium binary (~150MB download) and the test
+      # node_modules. Together these turn the install step from ~50s to ~5s
+      # on cache-hit runs.
+      - name: Cache Playwright browsers
+        if: github.event_name == 'pull_request' && steps.stage.outcome == 'success'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/playground/package-lock.json') }}
+
+      - name: Cache tests/playground node_modules
+        if: github.event_name == 'pull_request' && steps.stage.outcome == 'success'
+        uses: actions/cache@v4
+        with:
+          path: tests/playground/node_modules
+          key: tests-node-modules-${{ runner.os }}-${{ hashFiles('tests/playground/package-lock.json') }}
+
       - name: Install Playwright test deps
         if: github.event_name == 'pull_request' && steps.stage.outcome == 'success'
         working-directory: tests/playground
         run: |
-          npm install --no-audit --no-fund
+          # Skip npm install when node_modules was restored from cache.
+          if [ ! -d node_modules ]; then
+            npm install --no-audit --no-fund
+          fi
+          # `playwright install` is a no-op when the matching browser is already
+          # in the binary cache. --with-deps still runs apt-get for OS libs;
+          # those are quick.
           npx playwright install --with-deps chromium
 
       - name: Boot Playground CLI with staged plugin
@@ -199,18 +240,8 @@ jobs:
           set -euo pipefail
           PLUGIN_DIR="${{ github.workspace }}/build/staging/${SLUG}"
           mkdir -p tests/playground
-          # --php=7.4 is required here even though the blueprint declares
-          # preferredVersions: the @wp-playground/cli ignores that field and
-          # only honors its CLI flag. The blueprint setting is kept for
-          # portability (playground.wordpress.net URL loads do honor it).
-          #
-          # Detachment specifics:
-          # - `setsid` puts the server in a new session so it doesn't share a
-          #   process group with this shell.
-          # - `</dev/null` closes stdin on the child so the runner doesn't wait
-          #   on an open pipe at step end.
-          # - `disown` removes the bg job from the shell's job table so `bash -e`
-          #   doesn't wait for it when the script returns.
+          # Detachment specifics: setsid + </dev/null + disown — without these
+          # the runner waits for the bg server at step end.
           setsid nohup npx --yes @wp-playground/cli@latest server \
             --mount="$PLUGIN_DIR:/wordpress/wp-content/plugins/${SLUG}" \
             --port=12345 \
@@ -221,8 +252,6 @@ jobs:
           echo "$BOOT_PID" > tests/playground/playground.pid
           disown "$BOOT_PID" 2>/dev/null || true
 
-          # Probe localhost with a per-request timeout so a slow response can't
-          # eat the whole budget. 90s total cap is plenty for cold-boot.
           for i in $(seq 1 90); do
             if curl -fsS --max-time 2 -o /dev/null "http://localhost:12345/" 2>/dev/null; then
               echo "Playground ready after ${i}s"
