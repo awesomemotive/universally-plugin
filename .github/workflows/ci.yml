@@ -69,48 +69,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: plugin/package-lock.json
 
-      - name: Build panel JS + POT
-        working-directory: plugin
-        run: |
-          npm ci
-          npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
-          # POT is a generated artifact (not committed to source); regenerate so it
-          # ships in the staged tree the same way release.yml does it.
-          npm run makepot
-
-      - name: Stage plugin under wp.org slug
+      - name: Build production zip
         id: stage
-        run: |
-          set -euo pipefail
-          STAGE="build/check/${SLUG}"
-          rm -rf build && mkdir -p "$STAGE"
-
-          cp plugin/universally.php "$STAGE/"
-          cp plugin/uninstall.php   "$STAGE/"
-          cp plugin/config.php      "$STAGE/"
-          cp plugin/readme.txt      "$STAGE/"
-          cp -r plugin/app          "$STAGE/app"
-          cp -r plugin/includes     "$STAGE/includes"
-          cp -r plugin/assets       "$STAGE/assets"
-          cp -r plugin/languages    "$STAGE/languages"
-          mkdir -p "$STAGE/panel"
-          cp -r plugin/panel/src    "$STAGE/panel/src"
-          cp plugin/composer.json   "$STAGE/"
-
-          mkdir -p "$STAGE/panel/build"
-          cp plugin/panel/build/index.js         "$STAGE/panel/build/"
-          cp plugin/panel/build/index.asset.php  "$STAGE/panel/build/"
-          for f in plugin/panel/build/style-index*.css; do
-            [ -f "$f" ] && cp "$f" "$STAGE/panel/build/"
-          done
-          [ -d plugin/panel/build/blocks ] && cp -r plugin/panel/build/blocks "$STAGE/panel/build/blocks"
-
-          (cd "$STAGE" && composer install --no-dev --optimize-autoloader --no-interaction --quiet)
-          rm -f "$STAGE/composer.lock"
+        run: bash scripts/build.sh
 
       - uses: wordpress/plugin-check-action@v1
         with:
-          build-dir: build/check/${{ env.SLUG }}
+          build-dir: build/staging/${{ env.SLUG }}
           # Error-code-level suppression so we keep the rest of each parent check enabled
           # (license / requires / tested-up-to / etc. inside plugin_readme stay active).
           # - mismatched_plugin_name: intentional (long SEO name in readme vs short in header).
@@ -127,10 +92,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.SLUG }}-pr-${{ github.event.pull_request.number }}
-          # Uploading `build/check` (not the inner slug dir) preserves the wrapping
+          # Uploading `build/staging` (not the inner slug dir) preserves the wrapping
           # ${SLUG}/ folder inside the artifact zip — which is what WP/Playground
           # expects when installing a plugin from a URL.
-          path: build/check
+          path: build/staging
           retention-days: 14
 
       - name: Compose Playground links
@@ -194,7 +159,7 @@ jobs:
         id: wpnow
         run: |
           set -euo pipefail
-          PLUGIN_DIR="${{ github.workspace }}/build/check/${SLUG}"
+          PLUGIN_DIR="${{ github.workspace }}/build/staging/${SLUG}"
           mkdir -p tests/playground
           nohup npx --yes @wp-now/wp-now start \
             --path="$PLUGIN_DIR" \

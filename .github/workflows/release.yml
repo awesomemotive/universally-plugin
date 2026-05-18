@@ -1,15 +1,28 @@
 name: Release
-run-name: Release ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
+run-name: Release ${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}
 
+# Release is manual-only. Tag pushes do NOT auto-deploy — you ship by
+# opening Actions → Release → Run workflow and picking the tag.
+# Local `npm run release` creates the tag; it never triggers a deploy.
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Prerelease semver (e.g. 1.0.3-beta.1). Must contain a hyphen — manual dispatch is for prereleases only; stable cuts go through `npm run release`.'
+      tag:
+        description: 'Tag to ship (pick a recent one)'
+        type: choice
         required: true
+        options:
+          # >>> recent-tags (auto-managed by .github/workflows/refresh-release-options.yml — DO NOT EDIT MANUALLY)
+          - v1.0.3
+          - v1.0.3-beta.1
+          - v1.0.2-beta.1
+          - v1.0.1-beta.3
+          - v1.0.1-beta.2
+          # <<< recent-tags
+      custom_tag:
+        description: 'Or type any older tag (overrides the picker above)'
+        required: false
+        default: ''
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -23,36 +36,36 @@ jobs:
       is_prerelease: ${{ steps.parse.outputs.is_prerelease }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Build from the exact tag the dispatcher named, not master HEAD.
+          ref: ${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}
+          fetch-tags: true
 
       - name: Resolve version
         id: parse
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-            # Strip a leading 'v' if the dispatcher included it.
-            VERSION="${VERSION#v}"
-            # Refuse stable versions on dispatch — those must come from `npm run release`
-            # so the version-bump commit lands in source history.
-            if [[ "$VERSION" != *-* ]]; then
-              echo "::error::Manual dispatch is for prereleases only. Got '${VERSION}' (no '-' suffix). Cut stable releases with \`npm run release\`."
-              exit 1
-            fi
-          else
-            TAG="${GITHUB_REF#refs/tags/}"        # v1.2.3 or v1.2.3-beta.1
-            VERSION="${TAG#v}"
-          fi
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
-            echo "::error::Invalid semver: '${VERSION}'"
+          # custom_tag (text override) wins over tag (picker) when present.
+          TAG="${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}"
+          # Tag must start with 'v' followed by a valid semver.
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "::error::Invalid tag format: '${TAG}'. Expected 'v<semver>' (e.g. v1.0.4 or v1.0.4-beta.1)."
             exit 1
           fi
+          # Confirm the tag actually points at the commit we just checked out
+          # (catches typos that happen to be valid format).
+          if ! git rev-parse --verify "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "::error::Tag '${TAG}' not found in this checkout. Push it from local (npm run release) first."
+            exit 1
+          fi
+          VERSION="${TAG#v}"
           IS_PRE=false
           if [[ "$VERSION" == *-* ]]; then
             IS_PRE=true
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "is_prerelease=$IS_PRE" >> "$GITHUB_OUTPUT"
-          echo "Event=${{ github.event_name }} Version=$VERSION Prerelease=$IS_PRE"
+          echo "Tag=$TAG Version=$VERSION Prerelease=$IS_PRE"
 
       - uses: actions/setup-node@v5
         with:
@@ -77,59 +90,8 @@ jobs:
       - name: phpcs (security + PHP 7.4 compat)
         run: phpcs
 
-      - name: Build panel JS
-        working-directory: plugin
-        run: |
-          npm ci
-          npx wp-scripts build --webpack-src-dir=panel/js --output-path=panel/build
-
-      - name: Generate POT
-        working-directory: plugin
-        run: npm run makepot
-
-      - name: Stage production tree
-        env:
-          VERSION: ${{ steps.parse.outputs.version }}
-        run: |
-          set -euo pipefail
-          STAGE="build/staging/${SLUG}"
-          rm -rf build && mkdir -p "$STAGE"
-
-          cp plugin/universally.php "$STAGE/"
-          cp plugin/uninstall.php   "$STAGE/"
-          cp plugin/config.php      "$STAGE/"
-          cp plugin/readme.txt      "$STAGE/"
-          cp -r plugin/app          "$STAGE/app"
-          cp -r plugin/includes     "$STAGE/includes"
-          cp -r plugin/assets       "$STAGE/assets"
-          cp -r plugin/languages    "$STAGE/languages"
-
-          mkdir -p "$STAGE/panel/build"
-          cp plugin/panel/build/index.js         "$STAGE/panel/build/"
-          cp plugin/panel/build/index.asset.php  "$STAGE/panel/build/"
-          for f in plugin/panel/build/style-index*.css; do
-            [ -f "$f" ] && cp "$f" "$STAGE/panel/build/"
-          done
-          [ -d plugin/panel/build/blocks ] && cp -r plugin/panel/build/blocks "$STAGE/panel/build/blocks"
-          cp -r plugin/panel/src "$STAGE/panel/src"
-          cp plugin/composer.json "$STAGE/"
-
-          # Version-stamp the staged files (CI never modifies source).
-          sed -i "s/\* Version:.*/* Version: ${VERSION}/" "$STAGE/universally.php"
-          sed -i "s/const UNIVERSALLY_VERSION = .*/const UNIVERSALLY_VERSION = '${VERSION}';/" "$STAGE/universally.php"
-          # Only patch Stable tag for stable releases (no '-' in VERSION).
-          if [[ "${VERSION}" != *-* ]]; then
-            sed -i "s/^Stable tag:.*/Stable tag: ${VERSION}/" "$STAGE/readme.txt"
-          fi
-
-          (cd "$STAGE" && composer install --no-dev --optimize-autoloader --no-interaction --quiet)
-          rm -f "$STAGE/composer.lock"
-
-          find "$STAGE" \( -name ".DS_Store" -o -name ".gitkeep" -o -name "Thumbs.db" -o -name "*.map" \) -delete || true
-
-          mkdir -p dist
-          (cd build/staging && zip -r "../../dist/${SLUG}-${VERSION}.zip" "${SLUG}" -q)
-          ls -lh "dist/${SLUG}-${VERSION}.zip"
+      - name: Build production zip
+        run: bash scripts/build.sh "${{ steps.parse.outputs.version }}"
 
       - name: WordPress Plugin Check (hard gate)
         uses: wordpress/plugin-check-action@v1
