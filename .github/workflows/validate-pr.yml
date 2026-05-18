@@ -236,42 +236,22 @@ jobs:
       - name: Boot Playground CLI with staged plugin
         if: github.event_name == 'pull_request' && steps.stage.outcome == 'success'
         id: boot
-        working-directory: tests/playground
         run: |
           set -euo pipefail
           PLUGIN_DIR="${{ github.workspace }}/build/staging/${SLUG}"
-          # --php=7.4 is required here even though the blueprint declares
-          # preferredVersions: the @wp-playground/cli ignores that field and
-          # only honors its CLI flag. The blueprint setting is kept for
-          # portability (playground.wordpress.net URL loads do honor it).
-          #
-          # Detachment specifics:
-          # - `setsid` puts the server in a new session so it doesn't share a
-          #   process group with this shell.
-          # - `</dev/null` closes stdin on the child so the runner doesn't wait
-          #   on an open pipe at step end.
-          # - `disown` removes the bg job from the shell's job table so `bash -e`
-          #   doesn't wait for it when the script returns.
-          #
-          # We run from tests/playground so npx finds the cached @wp-playground/cli
-          # in local node_modules (devDep) rather than fetching it from npm.
-          # Pin --wp explicitly. The CLI's "latest" recently resolved to a WP
-          # release candidate (7.0-RC4) that hangs during boot under Playground.
-          # The blueprint's preferredVersions is ignored by the CLI; same story
-          # as --php (it only honors its own flags).
-          setsid nohup npx --yes @wp-playground/cli server \
+          mkdir -p tests/playground
+          # Detachment specifics: setsid + </dev/null + disown — without these
+          # the runner waits for the bg server at step end.
+          setsid nohup npx --yes @wp-playground/cli@latest server \
             --mount="$PLUGIN_DIR:/wordpress/wp-content/plugins/${SLUG}" \
             --port=12345 \
             --php=7.4 \
-            --wp=6.7 \
-            --blueprint=blueprint.json \
-            > playground.log 2>&1 </dev/null &
+            --blueprint=tests/playground/blueprint.json \
+            > tests/playground/playground.log 2>&1 </dev/null &
           BOOT_PID=$!
-          echo "$BOOT_PID" > playground.pid
+          echo "$BOOT_PID" > tests/playground/playground.pid
           disown "$BOOT_PID" 2>/dev/null || true
 
-          # Probe localhost with a per-request timeout so a slow response can't
-          # eat the whole budget. 90s total cap is plenty for cold-boot.
           for i in $(seq 1 90); do
             if curl -fsS --max-time 2 -o /dev/null "http://localhost:12345/" 2>/dev/null; then
               echo "Playground ready after ${i}s"
@@ -283,7 +263,7 @@ jobs:
           echo "--- listening sockets ---" >&2
           ss -ltn || netstat -tln || true
           echo "--- playground.log ---" >&2
-          tail -n 200 playground.log >&2 || true
+          tail -n 200 tests/playground/playground.log >&2 || true
           exit 1
 
       - name: Run Playwright smoke
