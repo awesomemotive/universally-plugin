@@ -4,8 +4,44 @@ on:
   pull_request:
 
 jobs:
+  # Detect which kinds of files actually changed. Other jobs gate on these
+  # outputs so a docs-only PR doesn't burn minutes running every check.
+  # If any workflow file changes, all jobs run as a safety net.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      php: ${{ steps.filter.outputs.php }}
+      js: ${{ steps.filter.outputs.js }}
+      composer: ${{ steps.filter.outputs.composer }}
+      build: ${{ steps.filter.outputs.build }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            php:
+              - 'plugin/**/*.php'
+              - 'phpcs.xml.dist'
+            js:
+              - 'plugin/panel/js/**'
+              - 'plugin/tsconfig.json'
+              - 'plugin/package.json'
+              - 'plugin/package-lock.json'
+            composer:
+              - 'plugin/composer.json'
+              - 'plugin/composer.lock'
+            build:
+              - 'plugin/**'
+              - 'scripts/**'
+            workflows:
+              - '.github/workflows/**'
+
   phpcs:
     name: PHPCS (security + PHP 7.4 compat)
+    needs: changes
+    if: needs.changes.outputs.php == 'true' || needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,6 +85,8 @@ jobs:
 
   build-and-preview:
     name: Build, check & Playground preview
+    needs: changes
+    if: needs.changes.outputs.build == 'true' || needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -206,6 +244,8 @@ jobs:
 
   composer-audit:
     name: composer audit
+    needs: changes
+    if: needs.changes.outputs.composer == 'true' || needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -221,6 +261,8 @@ jobs:
 
   typescript:
     name: TypeScript type-check
+    needs: changes
+    if: needs.changes.outputs.js == 'true' || needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
