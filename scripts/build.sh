@@ -22,9 +22,12 @@ STAGE="${STAGE_PARENT}/${SLUG}"
 DIST_DIR="dist"
 
 # Resolve VERSION: explicit arg wins; otherwise read from source.
+# `|| true` defers a missing/malformed source line to our own error message
+# instead of letting `pipefail` exit silently.
 VERSION="${1:-}"
 if [ -z "$VERSION" ]; then
-    VERSION=$(grep "const UNIVERSALLY_VERSION" "${PLUGIN_DIR}/universally.php" | sed "s/.*'\(.*\)'.*/\1/")
+    VERSION=$(grep "const UNIVERSALLY_VERSION" "${PLUGIN_DIR}/universally.php" \
+        | sed -E "s/.*['\"]([^'\"]*)['\"].*/\1/" || true)
 fi
 if [ -z "$VERSION" ]; then
     echo "Error: could not resolve version (no arg and none found in universally.php)" >&2
@@ -52,7 +55,9 @@ sed_in_place() {
 ( cd "${PLUGIN_DIR}" && npm run makepot )
 
 # ----- 3. Stage production tree -----
-rm -rf build && mkdir -p "${STAGE}"
+# Only clean our own staging parent — don't touch other build/* dirs developers
+# might have (e.g. test scratchpads, IDE artifacts).
+rm -rf "${STAGE_PARENT}" && mkdir -p "${STAGE}"
 
 cp "${PLUGIN_DIR}/universally.php" "${STAGE}/"
 cp "${PLUGIN_DIR}/uninstall.php"   "${STAGE}/"
