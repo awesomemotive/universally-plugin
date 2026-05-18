@@ -1,0 +1,27 @@
+name: Update wp.org assets
+run-name: Update wp.org assets @ ${{ github.sha }}
+
+# Pushes the contents of assets/ (Live Preview blueprint, banners, icons,
+# screenshots) to wp.org SVN's `assets/` directory only — no trunk/tags
+# touched, no new plugin version cut. Use this when you only want to refresh
+# the marketplace page without shipping code.
+#
+# Requires the same SVN_USERNAME / SVN_PASSWORD secrets used by
+# ship-to-wp-org.yml.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Sync assets/ to wp.org SVN
+        uses: 10up/action-wordpress-plugin-asset-update@stable
+        env:
+          SLUG: universally-language-translation-multilingual-tool
+          ASSETS_DIR: assets
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
