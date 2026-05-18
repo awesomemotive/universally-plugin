@@ -1,15 +1,28 @@
 name: Release
-run-name: Release ${{ inputs.tag }}
+run-name: Release ${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}
 
 # Release is manual-only. Tag pushes do NOT auto-deploy — you ship by
-# opening Actions → Release → Run workflow and entering the tag name.
+# opening Actions → Release → Run workflow and picking the tag.
 # Local `npm run release` creates the tag; it never triggers a deploy.
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to ship (e.g. v1.0.4 or v1.0.4-beta.1). Must already exist on origin.'
+        description: 'Tag to ship (pick a recent one)'
+        type: choice
         required: true
+        options:
+          # >>> recent-tags (auto-managed by .github/workflows/refresh-release-options.yml — DO NOT EDIT MANUALLY)
+          - v1.0.3
+          - v1.0.3-beta.1
+          - v1.0.2-beta.1
+          - v1.0.1-beta.3
+          - v1.0.1-beta.2
+          # <<< recent-tags
+      custom_tag:
+        description: 'Or type any older tag (overrides the picker above)'
+        required: false
+        default: ''
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -25,14 +38,15 @@ jobs:
       - uses: actions/checkout@v5
         with:
           # Build from the exact tag the dispatcher named, not master HEAD.
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}
           fetch-tags: true
 
       - name: Resolve version
         id: parse
         run: |
           set -euo pipefail
-          TAG="${{ inputs.tag }}"
+          # custom_tag (text override) wins over tag (picker) when present.
+          TAG="${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}"
           # Tag must start with 'v' followed by a valid semver.
           if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
             echo "::error::Invalid tag format: '${TAG}'. Expected 'v<semver>' (e.g. v1.0.4 or v1.0.4-beta.1)."

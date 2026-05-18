@@ -1,0 +1,64 @@
+name: Refresh release dropdown
+
+# Updates the `tag` choice options in release.yml with the 5 most recent tags.
+# Runs after every tag push (so a freshly cut tag appears in the picker for the
+# next deploy). The replaced block sits between the `# >>> recent-tags` and
+# `# <<< recent-tags` markers — nothing else in release.yml is touched.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Rebuild dropdown options
+        env:
+          WORKFLOW: .github/workflows/release.yml
+        run: |
+          set -euo pipefail
+          TAGS_BLOCK=$(git tag --sort=-creatordate | head -5 | awk '{ print "          - " $0 }')
+          if [ -z "$TAGS_BLOCK" ]; then
+            echo "No tags found, skipping"
+            exit 0
+          fi
+          export TAGS_BLOCK
+          python3 - <<'PY'
+          import os, re
+          path = os.environ['WORKFLOW']
+          content = open(path).read()
+          # Replace everything between the marker comments, keeping the markers themselves.
+          pattern = re.compile(
+              r'(# >>> recent-tags[^\n]*\n)(.*?)(\s+# <<< recent-tags)',
+              re.DOTALL,
+          )
+          replacement = lambda m: m.group(1) + os.environ['TAGS_BLOCK'] + '\n' + m.group(3).lstrip('\n')
+          new = pattern.sub(replacement, content, count=1)
+          if new == content:
+              print('No change')
+          else:
+              open(path, 'w').write(new)
+              print('Rewrote options block')
+          PY
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet .github/workflows/release.yml; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/release.yml
+          git commit -m "ci: refresh release dropdown with latest tags"
+          git push
