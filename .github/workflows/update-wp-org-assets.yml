@@ -66,6 +66,18 @@ jobs:
           fi
 
           svn status
+
+          # Defense-in-depth: refuse to commit if anything outside assets/ has
+          # changes. Catches the failure mode where some future edit to this
+          # workflow pulls in a wider scope. svn stat from SVN_DIR reports paths
+          # relative to that root; we accept only paths under assets/.
+          UNEXPECTED=$(cd "$SVN_DIR" && svn stat | awk 'NF && $NF !~ /^assets\// { print }')
+          if [ -n "$UNEXPECTED" ]; then
+              echo "::error::Refusing to commit — changes detected outside assets/:"
+              echo "$UNEXPECTED"
+              exit 1
+          fi
+
           svn commit \
               -m "Update assets from GitHub (${GITHUB_SHA::7})" \
               --non-interactive --no-auth-cache \
