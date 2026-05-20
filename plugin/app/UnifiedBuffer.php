@@ -16,6 +16,8 @@ if (!defined('ABSPATH')) {
 
 class UnifiedBuffer
 {
+    private const LANG_COOKIE = 'universally_lang';
+
     public function __construct()
     {
         add_action('init', [$this, 'setup'], 1);
@@ -58,13 +60,31 @@ class UnifiedBuffer
 
     public function setup(): void
     {
-        if (!isset($_SERVER['REQUEST_METHOD']) || 'GET' !== $_SERVER['REQUEST_METHOD'] || is_admin()) {
+        if (is_admin()) {
+            return;
+        }
+
+        $isGet = isset($_SERVER['REQUEST_METHOD']) && 'GET' === $_SERVER['REQUEST_METHOD'];
+
+        if (!$isGet) {
+            // Non-GET requests (e.g. POST to wp-comments-post.php) don't carry the language
+            // prefix in the URL, so derive it from the referrer and only re-prefix redirects.
+            $refererLang = $this->detectLanguageFromReferer();
+            if ($refererLang !== false) {
+                $this->preserveLanguagePrefixOnRedirects($refererLang);
+            }
             return;
         }
 
         $detected = $this->detectLanguage();
 
         if ($detected === false) {
+            // No language prefix in the URL — honor the visitor's stored preference
+            // unless they've explicitly opted back into the source language via the switcher.
+            $preferredLang = $this->getPreferredLanguageFromCookie();
+            if ($preferredLang !== null) {
+                $this->redirectToPreferredLanguage($preferredLang);
+            }
             return;
         }
 
@@ -73,6 +93,16 @@ class UnifiedBuffer
         // Redirect /lang to /lang/ (add trailing slash)
         if ($pathAfterPrefix === null) {
             $this->redirectToTrailingSlash($langCode);
+        }
+
+        // Remember the visitor's language so later unprefixed navigations stay translated.
+        $this->setLanguageCookie($langCode);
+
+        // Excluded pages aren't translated — bounce off the /{lang}/ URL so the user
+        // lands on the canonical source URL. The cookie still steers future navigations
+        // back into the translated experience.
+        if (universally_path_is_excluded($pathAfterPrefix)) {
+            $this->redirectToSource($pathAfterPrefix);
         }
 
         define('UNIVERSALLY_CURRENT_LANG', $langCode);
@@ -93,7 +123,44 @@ class UnifiedBuffer
     {
         // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- URL is parsed by wp_parse_url; sanitize_text_field would strip percent-encoded UTF-8 (emoji, non-Latin slugs).
         $requestUri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '/';
-        $parsedUri = wp_parse_url($requestUri);
+        return $this->parseLanguageFromUrl($requestUri);
+    }
+
+    /**
+     * Detect the language prefix of the request's referrer (same-origin only).
+     * Used on non-GET requests like comment POSTs, which target prefix-less endpoints.
+     *
+     * @return string|false langCode or false
+     */
+    private function detectLanguageFromReferer()
+    {
+        if (empty($_SERVER['HTTP_REFERER'])) {
+            return false;
+        }
+
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- parsed by wp_parse_url; same UTF-8 concern as REQUEST_URI.
+        $referer = wp_unslash($_SERVER['HTTP_REFERER']);
+        $refererHost = wp_parse_url($referer, PHP_URL_HOST);
+        $siteHost = wp_parse_url(home_url(), PHP_URL_HOST);
+
+        if ($refererHost !== $siteHost) {
+            return false;
+        }
+
+        $parsed = $this->parseLanguageFromUrl($referer);
+        if ($parsed === false) {
+            return false;
+        }
+
+        return $parsed[0];
+    }
+
+    /**
+     * @return array{string, string, string|null}|false [langCode, targetLocale, pathAfterPrefix] or false
+     */
+    private function parseLanguageFromUrl(string $url)
+    {
+        $parsedUri = wp_parse_url($url);
         $rawPath = $parsedUri['path'] ?? '/';
 
         // Match the language prefix on a decoded copy of the path so that a percent-encoded
@@ -119,6 +186,96 @@ class UnifiedBuffer
         $pathAfterPrefix = $rawAfterPrefix !== '' ? $rawAfterPrefix : null;
 
         return [$langCode, $targetLocale, $pathAfterPrefix];
+    }
+
+    private function redirectToSource(string $pathAfterPrefix): void
+    {
+        $redirectUrl = $pathAfterPrefix === '' ? '/' : $pathAfterPrefix;
+        if (!empty($_SERVER['QUERY_STRING'])) {
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- esc_url_raw wraps the full URL below.
+            $redirectUrl .= '?' . wp_unslash($_SERVER['QUERY_STRING']);
+        }
+        wp_safe_redirect(esc_url_raw(home_url($redirectUrl)), 301);
+        exit;
+    }
+
+    /**
+     * For visitors with a stored language preference, redirect unprefixed GET
+     * requests to the matching /{lang}/ URL. Skips WordPress system endpoints,
+     * file-like paths, and pages excluded from translation.
+     */
+    private function redirectToPreferredLanguage(string $langCode): void
+    {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- parsed by wp_parse_url; sanitize_text_field would corrupt percent-encoded UTF-8.
+        $requestUri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '/';
+        $parsed = wp_parse_url($requestUri);
+        $path = $parsed['path'] ?? '/';
+
+        // Skip WordPress system endpoints
+        if (preg_match('#^/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json|wp-cron\.php|wp-trackback\.php|wp-comments-post\.php|xmlrpc\.php)(/|$)#', $path)) {
+            return;
+        }
+
+        // Skip file-like paths (sitemap.xml, favicon.ico, robots.txt, etc.)
+        if (preg_match('/\.[a-z0-9]{1,5}$/i', $path)) {
+            return;
+        }
+
+        // Skip pages excluded from translation — they live at the source URL.
+        if (universally_path_is_excluded($path)) {
+            return;
+        }
+
+        $newPath = '/' . $langCode . $path;
+        $query = !empty($parsed['query']) ? '?' . $parsed['query'] : '';
+
+        wp_safe_redirect(esc_url_raw(home_url($newPath . $query)), 302);
+        exit;
+    }
+
+    private function setLanguageCookie(string $langCode): void
+    {
+        if (headers_sent()) {
+            return;
+        }
+
+        $existing = isset($_COOKIE[self::LANG_COOKIE]) ? (string) $_COOKIE[self::LANG_COOKIE] : '';
+        if ($existing === $langCode) {
+            return;
+        }
+
+        setcookie(
+            self::LANG_COOKIE,
+            $langCode,
+            [
+                'expires' => time() + 30 * DAY_IN_SECONDS,
+                'path' => defined('COOKIEPATH') && COOKIEPATH ? COOKIEPATH : '/',
+                'domain' => defined('COOKIE_DOMAIN') ? COOKIE_DOMAIN : '',
+                'secure' => is_ssl(),
+                'httponly' => false,
+                'samesite' => 'Lax',
+            ]
+        );
+        // Reflect into $_COOKIE so later code in this request sees the new value.
+        $_COOKIE[self::LANG_COOKIE] = $langCode;
+    }
+
+    private function getPreferredLanguageFromCookie(): ?string
+    {
+        if (empty($_COOKIE[self::LANG_COOKIE])) {
+            return null;
+        }
+
+        $lang = strtolower(sanitize_key((string) wp_unslash($_COOKIE[self::LANG_COOKIE])));
+        if ($lang === '') {
+            return null;
+        }
+
+        if ($this->resolveUrlCodeToLocale($lang) === false) {
+            return null;
+        }
+
+        return $lang;
     }
 
     private function redirectToTrailingSlash(string $langCode): void
