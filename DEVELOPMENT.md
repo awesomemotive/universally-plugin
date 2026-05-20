@@ -59,7 +59,7 @@ Two steps:
 
 2. **On GitHub**, deploy it:
    - Open **Actions → Ship to wp.org → Run workflow** ([direct link](https://github.com/awesomemotive/universally-plugin/actions/workflows/ship-to-wp-org.yml)).
-   - Pick the tag from the dropdown (latest 5 are listed; older ones go in `custom_tag`).
+   - Leave **tag** empty to ship the latest stable tag, or type a specific tag (e.g. `v1.0.3`, `v1.0.4-beta.1`) to ship something else.
    - Run.
 
 That's it. CI builds, runs gates, ships:
@@ -95,13 +95,12 @@ A red confirmation banner appears before anything is pushed; you have to type ba
 
 `ship-to-wp-org.yml` is manual-only — tag pushes don't auto-ship. When you run it:
 
-1. CI checks out the exact tag you picked.
-2. `scripts/build.sh` produces the production zip (same script local `npm run build` runs).
-3. phpcs (PHP 7.4 + security) and WP Plugin Check gate the release.
-4. Stable tag → wp.org SVN deploy via [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy). Prereleases skip this step.
-5. GitHub Release published with the zip + a one-click WordPress Playground link.
-
-The dropdown of recent tags is kept current by `.github/workflows/refresh-tag-list.yml`, which runs on every tag push and rewrites the options block in `ship-to-wp-org.yml`.
+1. If you left **tag** empty, CI resolves it to the latest stable `vX.Y.Z` tag (highest semver, no prerelease suffix). Otherwise the typed tag is used as-is.
+2. CI checks out the resolved tag.
+3. `scripts/build.sh` produces the production zip (same script local `npm run build` runs).
+4. phpcs (PHP 7.4 + security) and WP Plugin Check gate the release.
+5. Stable tag → wp.org SVN deploy via [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy). Prereleases skip this step.
+6. GitHub Release published with the zip + a one-click WordPress Playground link.
 
 Why two steps instead of auto-deploy on tag push? Tagging is reversible (delete the tag and re-push); SVN deploys aren't. The manual click is a deliberate guard.
 
