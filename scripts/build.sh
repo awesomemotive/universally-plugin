@@ -6,8 +6,8 @@
 #   bash scripts/build.sh [VERSION]
 #
 # If VERSION is omitted, it's read from plugin/universally.php's UNIVERSALLY_VERSION
-# constant. CI invokes with the tag/dispatch version; local users typically run it
-# bare after `npm run release` has updated the source files.
+# constant. CI invokes with the version it just resolved; local users run it bare
+# to build a zip from whatever's currently in the working tree.
 
 set -euo pipefail
 

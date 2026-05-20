@@ -1,32 +1,23 @@
 name: Ship to wp.org
-run-name: Ship ${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}
+run-name: Ship ${{ inputs.version != '' && inputs.version || 'latest stable' }}
 
-# Release is manual-only. Tag pushes do NOT auto-deploy — you ship by
-# opening Actions → Release → Run workflow and picking the tag.
-# Local `npm run release` creates the tag; it never triggers a deploy.
+# Manual-only release. Provide `version` to bump source files, commit
+# "Release X.Y.Z" on master, tag, and ship. Leave it empty to re-ship the
+# latest existing stable tag without bumping anything.
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag to ship (pick a recent one)'
-        type: choice
-        required: true
-        options:
-          # >>> recent-tags (auto-managed by .github/workflows/refresh-tag-list.yml — DO NOT EDIT MANUALLY)
-          - v1.0.3
-          - v1.0.3-beta.1
-          - v1.0.2-beta.1
-          - v1.0.1-beta.3
-          - v1.0.1-beta.2
-          # <<< recent-tags
-      custom_tag:
-        description: 'Or type any older tag (overrides the picker above)'
+      version:
+        description: 'New version to release (e.g. 1.0.4 or 1.0.4-beta.1). Leave empty to re-ship the latest existing stable tag.'
         required: false
         default: ''
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   SLUG: universally-language-translation-multilingual-tool
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -37,32 +28,70 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          # Build from the exact tag the dispatcher named, not master HEAD.
-          ref: ${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}
+          # Full history + tags so we can resolve "latest stable", create a
+          # bump commit on master, and tag from CI.
+          fetch-depth: 0
           fetch-tags: true
 
-      - name: Resolve version
+      - name: Resolve version, bump + tag when creating a new release
         id: parse
         run: |
           set -euo pipefail
-          # custom_tag (text override) wins over tag (picker) when present.
-          TAG="${{ inputs.custom_tag != '' && inputs.custom_tag || inputs.tag }}"
-          # Tag must start with 'v' followed by a valid semver.
-          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
-            echo "::error::Invalid tag format: '${TAG}'. Expected 'v<semver>' (e.g. v1.0.4 or v1.0.4-beta.1)."
-            exit 1
+          INPUT_VERSION="${{ inputs.version }}"
+          INPUT_VERSION="${INPUT_VERSION#v}"
+
+          if [ -z "$INPUT_VERSION" ]; then
+            # Empty input → re-ship the latest existing stable tag (no bump, no tag).
+            TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v -- '-' | head -n1 || true)
+            if [ -z "$TAG" ]; then
+              echo "::error::No stable tags found. Provide 'version' to create the first one."
+              exit 1
+            fi
+            VERSION="${TAG#v}"
+            echo "Re-shipping latest stable tag: $TAG"
+            git checkout "refs/tags/${TAG}"
+          else
+            VERSION="$INPUT_VERSION"
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
+              echo "::error::Invalid version: '${VERSION}'. Expected semver (e.g. 1.0.4 or 1.0.4-beta.1)."
+              exit 1
+            fi
+            TAG="v${VERSION}"
+            IS_PRE=false
+            [[ "$VERSION" == *-* ]] && IS_PRE=true
+
+            if git rev-parse --verify "refs/tags/${TAG}" >/dev/null 2>&1; then
+              echo "Tag ${TAG} already exists — re-shipping it without bumping."
+              git checkout "refs/tags/${TAG}"
+            else
+              echo "Creating new release ${TAG} from master."
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+              # Bump plugin/universally.php header + UNIVERSALLY_VERSION
+              sed -i "s/^ \\* Version:.*/ * Version: ${VERSION}/" plugin/universally.php
+              sed -i "s/^const UNIVERSALLY_VERSION = .*/const UNIVERSALLY_VERSION = '${VERSION}';/" plugin/universally.php
+
+              # Bump plugin/package.json (node preserves JSON formatting)
+              node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('plugin/package.json','utf8')); p.version='${VERSION}'; fs.writeFileSync('plugin/package.json', JSON.stringify(p, null, 2) + '\n');"
+
+              # readme.txt Stable tag — stable releases only
+              if [ "$IS_PRE" = "false" ]; then
+                sed -i "s/^Stable tag:.*/Stable tag: ${VERSION}/" plugin/readme.txt
+              fi
+
+              git add plugin/universally.php plugin/package.json
+              [ "$IS_PRE" = "false" ] && git add plugin/readme.txt
+              git diff --cached --quiet || git commit -m "Release ${VERSION}"
+              git push origin HEAD:master
+
+              git tag -a "${TAG}" -m "Release ${VERSION}"
+              git push origin "refs/tags/${TAG}"
+            fi
           fi
-          # Confirm the tag actually points at the commit we just checked out
-          # (catches typos that happen to be valid format).
-          if ! git rev-parse --verify "refs/tags/${TAG}" >/dev/null 2>&1; then
-            echo "::error::Tag '${TAG}' not found in this checkout. Push it from local (npm run release) first."
-            exit 1
-          fi
-          VERSION="${TAG#v}"
+
           IS_PRE=false
-          if [[ "$VERSION" == *-* ]]; then
-            IS_PRE=true
-          fi
+          [[ "$VERSION" == *-* ]] && IS_PRE=true
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "is_prerelease=$IS_PRE" >> "$GITHUB_OUTPUT"
           echo "Tag=$TAG Version=$VERSION Prerelease=$IS_PRE"
