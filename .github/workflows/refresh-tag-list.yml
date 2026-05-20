@@ -19,6 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          # Tag-push events check out the tag SHA in detached-HEAD mode, which
+          # makes `git push` (in "Commit if changed" below) fail. Pin to master
+          # so the rewrite happens on a branch we can push back to.
+          ref: master
           fetch-depth: 0
           fetch-tags: true
 
