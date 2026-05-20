@@ -16,7 +16,7 @@ plugin/                  # plugin source (ships to wp.org)
   languages/             # translations and POT file
   readme.txt             # wp.org listing
 assets/                  # wp.org plugin page assets (banners, icons, screenshots)
-scripts/release.sh       # release entry — bumps, builds, tags, pushes
+scripts/build.sh         # local production build (also used by CI)
 docker-compose.yml       # local WordPress for quick testing
 ```
 
@@ -49,60 +49,22 @@ docker compose down -v   # wipe DB + WP install when done
 
 ## Releasing — TL;DR
 
-Two steps:
+Open **Actions → Ship to wp.org → Run workflow** ([direct link](https://github.com/awesomemotive/universally-plugin/actions/workflows/ship-to-wp-org.yml)) and fill in **version**:
 
-1. **Locally**, create the tag:
-   ```sh
-   npm run release
-   ```
-   Follow the prompts (bump type, channel, type-to-confirm). When done, the tag is on GitHub but **nothing has shipped yet**.
+- **New release** → type the version (e.g. `1.0.4`, `1.1.0`, `1.0.4-beta.1`). CI bumps `plugin/universally.php`, `plugin/package.json`, and `plugin/readme.txt` (`Stable tag`, stable releases only), commits "Release X.Y.Z" on master, creates the `vX.Y.Z` tag, then builds and ships.
+- **Re-ship an existing release** → type that exact version. If the tag already exists, CI skips the bump and just re-runs the build + ship from the tag.
+- **Re-ship the latest stable** → leave **version** empty.
 
-2. **On GitHub**, deploy it:
-   - Open **Actions → Ship to wp.org → Run workflow** ([direct link](https://github.com/awesomemotive/universally-plugin/actions/workflows/ship-to-wp-org.yml)).
-   - Leave **tag** empty to ship the latest stable tag, or type a specific tag (e.g. `v1.0.3`, `v1.0.4-beta.1`) to ship something else.
-   - Run.
+Stable → wp.org SVN + GitHub Release. Beta/RC (`-beta.N`, `-rc.N`) → GitHub Release only.
 
-That's it. CI builds, runs gates, ships:
-- Stable tag → wp.org SVN + GitHub Release.
-- Beta/RC tag → GitHub Release only (no wp.org).
+### What CI does
 
----
-
-### Details — `npm run release`
-
-Two-step interactive menu — first pick the **bump type**, then the **channel**:
-
-**Bump type:**
-- `1) patch` — `1.0.0 → 1.0.1`
-- `2) minor` — `1.0.0 → 1.1.0`
-- `3) major` — `1.0.0 → 2.0.0` (extra confirmation)
-- `4) custom` — enter the exact version (skips channel prompt)
-- `5) rebuild` — force re-release of the current version (skips channel prompt; replaces the tag)
-
-**Channel** (only shown for patch / minor / major):
-- `1) stable` — `vX.Y.Z`
-- `2) beta` — `vX.Y.Z-beta.N` (auto-increments N from existing beta tags for that base)
-- `3) rc` — `vX.Y.Z-rc.N`
-
-Examples:
-- patch + stable from `1.0.1` → `1.0.2`
-- patch + beta from `1.0.1` → `1.0.2-beta.1`
-- minor + rc from `1.0.1` → `1.1.0-rc.1` (or `.2` if `v1.1.0-rc.1` already exists)
-
-A red confirmation banner appears before anything is pushed; you have to type back `release <version>` to proceed. The script bumps `plugin/universally.php`, `plugin/package.json`, and `plugin/readme.txt` (`Stable tag` only for stable releases), commits, creates an annotated `vX.Y.Z` tag, and pushes. It does **not** build and does **not** deploy.
-
-### Details — Deploy workflow
-
-`ship-to-wp-org.yml` is manual-only — tag pushes don't auto-ship. When you run it:
-
-1. If you left **tag** empty, CI resolves it to the latest stable `vX.Y.Z` tag (highest semver, no prerelease suffix). Otherwise the typed tag is used as-is.
-2. CI checks out the resolved tag.
+1. Resolves the input. Empty → latest stable tag. Filled + tag exists → check out that tag. Filled + tag missing → bump source files, commit "Release X.Y.Z" on master, create + push the tag.
+2. Checks out the resolved tag.
 3. `scripts/build.sh` produces the production zip (same script local `npm run build` runs).
 4. phpcs (PHP 7.4 + security) and WP Plugin Check gate the release.
 5. Stable tag → wp.org SVN deploy via [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy). Prereleases skip this step.
 6. GitHub Release published with the zip + a one-click WordPress Playground link.
-
-Why two steps instead of auto-deploy on tag push? Tagging is reversible (delete the tag and re-push); SVN deploys aren't. The manual click is a deliberate guard.
 
 ## Updating wp.org assets only (no release)
 

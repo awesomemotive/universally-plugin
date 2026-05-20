@@ -4,7 +4,6 @@
   "private": true,
   "description": "Release tooling for the Universally WordPress plugin. Plugin source lives in plugin/.",
   "scripts": {
-    "release": "bash scripts/release.sh",
     "build": "bash scripts/build.sh"
   }
 }
