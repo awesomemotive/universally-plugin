@@ -181,6 +181,45 @@ function universally_get_exclude_pages(bool $forceRefresh = false): array
 }
 
 /**
+ * Check whether a path (already stripped of any language prefix) matches the
+ * site's exclude-pages configuration.
+ *
+ * Supports exact paths (e.g. "/checkout/") and trailing wildcards
+ * ("/admin/*"). Trailing slashes are ignored when comparing.
+ */
+function universally_path_is_excluded(string $path): bool
+{
+    $excludePages = universally_get_exclude_pages();
+
+    if (empty($excludePages)) {
+        return false;
+    }
+
+    $normalized = '/' . ltrim($path, '/');
+    $normalized = $normalized === '/' ? '/' : rtrim($normalized, '/');
+
+    foreach ($excludePages as $pattern) {
+        $p = trim($pattern);
+        if ($p === '') {
+            continue;
+        }
+
+        if (substr($p, -2) === '/*') {
+            $prefix = rtrim(substr($p, 0, -2), '/');
+            if ($normalized === $prefix || strpos($normalized, $prefix . '/') === 0) {
+                return true;
+            }
+        } else {
+            if ($normalized === rtrim($p, '/')) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
  * Get all languages with URLs and current status
  *
  * Returns all languages (source + targets) from the API with added URL and isCurrent fields.

@@ -227,39 +227,16 @@ class LanguageSwitcher
 
     private function isCurrentPageExcluded(): bool
     {
-        $excludePages = universally_get_exclude_pages();
-
-        if (empty($excludePages)) {
-            return false;
-        }
-
         // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- URL is parsed by wp_parse_url; sanitize_text_field would strip percent-encoded UTF-8.
-        $currentPath = wp_parse_url(wp_unslash($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
-        $currentPath = rtrim($currentPath ?? '/', '/');
+        $currentPath = wp_parse_url(wp_unslash($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/';
 
-        // Strip language prefix if present (e.g. /fr/checkout -> /checkout)
+        // UnifiedBuffer strips the language prefix from REQUEST_URI before WP's router
+        // runs, but be defensive in case this is called from a non-buffered path.
         $currentLang = universally_get_current_lang();
         if ($currentLang !== null) {
             $currentPath = preg_replace('#^/' . preg_quote($currentLang, '#') . '(/|$)#', '/$1', $currentPath);
-            $currentPath = rtrim($currentPath, '/');
         }
 
-        foreach ($excludePages as $pattern) {
-            $p = trim($pattern);
-            if ($p === '') continue;
-
-            if (substr($p, -2) === '/*') {
-                $prefix = rtrim(substr($p, 0, -2), '/');
-                if ($currentPath === $prefix || strpos($currentPath, $prefix . '/') === 0) {
-                    return true;
-                }
-            } else {
-                if ($currentPath === rtrim($p, '/')) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return universally_path_is_excluded($currentPath);
     }
 }

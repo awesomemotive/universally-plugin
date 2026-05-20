@@ -72,7 +72,10 @@ class UniversallySwitcher extends HTMLElement {
 
     const itemsHtml = others.map(lang => {
       const hreflang = lang.region || lang.variant || '';
-      return `<li><a href="${lang.url}" hreflang="${hreflang}" lang="${hreflang}">${labelHtml(lang)}</a></li>`;
+      // data-lang carries the urlPrefix for target languages; an empty value
+      // marks the source language so the click handler can clear the cookie.
+      const dataLang = lang.isSource ? '' : (lang.urlPrefix || '');
+      return `<li><a href="${lang.url}" hreflang="${hreflang}" lang="${hreflang}" data-lang="${dataLang}">${labelHtml(lang)}</a></li>`;
     }).join('');
 
     this.shadowRoot.innerHTML = `
@@ -185,8 +188,24 @@ class UniversallySwitcher extends HTMLElement {
       this._toggle();
     });
 
+    this._dropdown.querySelectorAll('a[data-lang]').forEach((a) => {
+      a.addEventListener('click', () => {
+        this._persistLanguageChoice(a.getAttribute('data-lang') || '');
+      });
+    });
+
     document.addEventListener('click', this._onDocClick, true);
     document.addEventListener('keydown', this._onKeyDown);
+  }
+
+  _persistLanguageChoice(urlPrefix) {
+    // Empty urlPrefix means the source language: clearing the cookie tells the
+    // server "this user explicitly opted out of translation" so it stops
+    // re-prefixing future navigations.
+    const maxAge = urlPrefix ? 60 * 60 * 24 * 30 : 0;
+    const value = urlPrefix ? encodeURIComponent(urlPrefix) : '';
+    const secure = location.protocol === 'https:' ? ';secure' : '';
+    document.cookie = `universally_lang=${value};path=/;max-age=${maxAge};samesite=Lax${secure}`;
   }
 
   _toggle() {
