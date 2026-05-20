@@ -239,7 +239,9 @@ class UnifiedBuffer
             return;
         }
 
-        $existing = isset($_COOKIE[self::LANG_COOKIE]) ? (string) $_COOKIE[self::LANG_COOKIE] : '';
+        $existing = isset($_COOKIE[self::LANG_COOKIE])
+            ? sanitize_key(wp_unslash((string) $_COOKIE[self::LANG_COOKIE]))
+            : '';
         if ($existing === $langCode) {
             return;
         }
