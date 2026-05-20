@@ -4,7 +4,7 @@ Tags: translate, translation, multilingual, language switcher, multilingual seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -245,6 +245,11 @@ You can reach our support team through the [Universally dashboard](https://app.u
 
 == Changelog ==
 
+= 1.0.4 =
+* Fix: posting a comment from a translated page no longer drops the visitor back into the source language — the post-submit redirect stays on the translated URL.
+* Fix: excluded pages now redirect to their canonical (unprefixed) URL so the address bar matches the rendered content.
+* New: the visitor's language preference is remembered across navigations. Only the source-language option in the switcher restores the original language for good.
+
 = 1.0.3 =
 * New: one-click activation from the Universally dashboard. Confirm the workspace you're connecting to and the plugin saves your API key automatically — no manual paste.
 
@@ -258,6 +263,9 @@ You can reach our support team through the [Universally dashboard](https://app.u
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.0.4 =
+Keeps the visitor on the translated language after submitting a comment, redirects excluded pages to their canonical URL, and remembers the chosen language across navigations.
 
 = 1.0.3 =
 Adds one-click activation from the Universally dashboard with a workspace confirmation step. No more manual API key paste.

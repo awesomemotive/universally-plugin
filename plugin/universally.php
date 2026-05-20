@@ -3,12 +3,12 @@
  * Plugin Name: Universally Language Translation Multilingual Tool
  * Plugin URI: https://universally.com
  * Description: Automatic website translation and localization for WordPress.
- * Version: 1.0.3
+ * Version: 1.0.4
  * Author: benjaminprojas
  * Author URI: https://profiles.wordpress.org/benjaminprojas/
  * Text Domain: universally-language-translation-multilingual-tool
  * Requires at least: 6.0
- * Tested up to: 6.9
+ * Tested up to: 7.0
  * Requires PHP: 7.4
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -36,7 +36,7 @@ if (class_exists('Universally\\AdminBar', false)) {
 }
 
 const UNIVERSALLY_PLUGIN_FILE = __FILE__;
-const UNIVERSALLY_VERSION = '1.0.3';
+const UNIVERSALLY_VERSION = '1.0.4';
 const UNIVERSALLY_SETTINGS_KEY = 'universally_settings';
 
 register_activation_hook(__FILE__, function () {
