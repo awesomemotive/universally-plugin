@@ -4,8 +4,8 @@
  * Plugin URI: https://universally.com
  * Description: Automatic website translation and localization for WordPress.
  * Version: 1.0.4-beta.1
- * Author: benjaminprojas
- * Author URI: https://profiles.wordpress.org/benjaminprojas/
+ * Author: Syed Balkhi
+ * Author URI: https://universally.com/
  * Text Domain: universally-language-translation-multilingual-tool
  * Requires at least: 6.0
  * Tested up to: 7.0
