@@ -65,53 +65,89 @@ class UnifiedBuffer
         }
 
         $isGet = isset($_SERVER['REQUEST_METHOD']) && 'GET' === $_SERVER['REQUEST_METHOD'];
-
-        if (!$isGet) {
-            // Non-GET requests (e.g. POST to wp-comments-post.php) don't carry the language
-            // prefix in the URL, so derive it from the referrer and only re-prefix redirects.
-            $refererLang = $this->detectLanguageFromReferer();
-            if ($refererLang !== false) {
-                $this->preserveLanguagePrefixOnRedirects($refererLang);
-            }
-            return;
-        }
-
         $detected = $this->detectLanguage();
 
-        if ($detected === false) {
-            // No language prefix in the URL — honor the visitor's stored preference
-            // unless they've explicitly opted back into the source language via the switcher.
+        // For non-GET requests that don't carry the prefix in the URL (typical for
+        // form POSTs whose action came from get_permalink()), fall back to the referer
+        // so we can still translate the rendered response.
+        if ($detected === false && !$isGet) {
+            $refererLang = $this->detectLanguageFromReferer();
+            if ($refererLang === false) {
+                return;
+            }
+            $refererLocale = $this->resolveUrlCodeToLocale($refererLang);
+            if ($refererLocale === false) {
+                return;
+            }
+            $langCode = $refererLang;
+            $targetLocale = $refererLocale;
+            $pathAfterPrefix = null;
+        } elseif ($detected === false) {
+            // GET without a URL prefix — honor the visitor's stored preference unless
+            // they've explicitly opted back into the source language via the switcher.
             $preferredLang = $this->getPreferredLanguageFromCookie();
             if ($preferredLang !== null) {
                 $this->redirectToPreferredLanguage($preferredLang);
             }
             return;
+        } else {
+            [$langCode, $targetLocale, $pathAfterPrefix] = $detected;
         }
 
-        [$langCode, $targetLocale, $pathAfterPrefix] = $detected;
-
-        // Redirect /lang to /lang/ (add trailing slash)
-        if ($pathAfterPrefix === null) {
-            $this->redirectToTrailingSlash($langCode);
-        }
-
-        // Remember the visitor's language so later unprefixed navigations stay translated.
-        $this->setLanguageCookie($langCode);
-
-        // Excluded pages aren't translated — bounce off the /{lang}/ URL so the user
-        // lands on the canonical source URL. The cookie still steers future navigations
-        // back into the translated experience.
-        if (universally_path_is_excluded($pathAfterPrefix)) {
-            $this->redirectToSource($pathAfterPrefix);
+        // GET-only navigation behaviors: trailing slash normalization, cookie
+        // persistence, and bouncing /{lang}/excluded/ paths to the source URL.
+        if ($isGet) {
+            if ($pathAfterPrefix === null) {
+                $this->redirectToTrailingSlash($langCode);
+            }
+            $this->setLanguageCookie($langCode);
+            if (universally_path_is_excluded($pathAfterPrefix)) {
+                $this->redirectToSource($pathAfterPrefix);
+            }
         }
 
         define('UNIVERSALLY_CURRENT_LANG', $langCode);
         define('UNIVERSALLY_CURRENT_LOCALE', $targetLocale);
 
-        $this->stripLanguagePrefix($pathAfterPrefix);
+        if ($pathAfterPrefix !== null) {
+            $this->stripLanguagePrefix($pathAfterPrefix);
+        }
         $this->preserveLanguagePrefixOnRedirects($langCode);
+        $this->preserveLanguagePrefixOnWooCommerceUrls($langCode);
+
+        // Don't capture responses from endpoints that return JSON/XML — translating
+        // those bodies as HTML would corrupt the response. Frontend HTML rendered as
+        // a POST response (e.g. WC add-to-cart with default settings) still flows
+        // through translateBuffer, with a Content-Type guard as defense in depth.
+        if ($this->isNonHtmlEndpoint()) {
+            return;
+        }
 
         ob_start([$this, 'translateBuffer']);
+    }
+
+    private function isNonHtmlEndpoint(): bool
+    {
+        if (defined('REST_REQUEST') && REST_REQUEST) {
+            return true;
+        }
+        if (wp_doing_ajax()) {
+            return true;
+        }
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- parsed by wp_parse_url; sanitize_text_field would corrupt percent-encoded UTF-8 in non-Latin slugs.
+        $requestUri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '';
+        $path = (string) wp_parse_url($requestUri, PHP_URL_PATH);
+        if ($path !== '' && preg_match('#^/(wp-json|xmlrpc\.php|wp-trackback\.php)(/|$)#', $path)) {
+            return true;
+        }
+        // WooCommerce AJAX (?wc-ajax=...) bypasses admin-ajax and returns JSON.
+        // Nonce verification is irrelevant here — we're deciding whether to attach an
+        // output buffer based on the presence of a query parameter, not processing it.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        if (isset($_GET['wc-ajax'])) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -309,43 +345,76 @@ class UnifiedBuffer
     private function preserveLanguagePrefixOnRedirects(string $langCode): void
     {
         add_filter('wp_redirect', function (string $location) use ($langCode): string {
-            $parsed = wp_parse_url($location);
-            $path = $parsed['path'] ?? '/';
-
-            // Ignore external redirects
-            $siteHost = wp_parse_url(home_url(), PHP_URL_HOST);
-            if (!empty($parsed['host']) && $parsed['host'] !== $siteHost) {
-                return $location;
-            }
-
-            // Ignore WordPress system paths
-            if (preg_match('/^\/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json)/', $path)) {
-                return $location;
-            }
-
-            // Skip if redirect already has a valid language prefix
-            $firstSegment = strtolower(explode('/', trim($path, '/'))[0] ?? '');
-            if ($firstSegment !== '' && $this->resolveUrlCodeToLocale($firstSegment) !== false) {
-                return $location;
-            }
-
-            // Re-add the language prefix
-            $newPath = '/' . $langCode . $path;
-            $query = !empty($parsed['query']) ? '?' . $parsed['query'] : '';
-
-            if (!empty($parsed['host'])) {
-                $scheme = $parsed['scheme'] ?? 'https';
-                return $scheme . '://' . $parsed['host'] . $newPath . $query;
-            }
-
-            return $newPath . $query;
+            return $this->prefixUrlWithLanguage($location, $langCode);
         });
+    }
+
+    /**
+     * Ensure same-origin form actions / outbound URLs WC emits carry the language
+     * prefix, so the resulting POST or navigation stays in the visitor's language.
+     */
+    private function preserveLanguagePrefixOnWooCommerceUrls(string $langCode): void
+    {
+        $filter = function (string $url) use ($langCode): string {
+            return $this->prefixUrlWithLanguage($url, $langCode);
+        };
+
+        // Form action for the single-product add-to-cart form (the case where
+        // submitting otherwise drops the visitor to the unprefixed product URL).
+        add_filter('woocommerce_add_to_cart_form_action', $filter);
+    }
+
+    /**
+     * Prefix a same-origin URL with /{langCode}/. Returns the URL unchanged when
+     * it points at another host, hits a WordPress system path, or already carries
+     * a valid language prefix.
+     */
+    private function prefixUrlWithLanguage(string $url, string $langCode): string
+    {
+        $parsed = wp_parse_url($url);
+        $path = $parsed['path'] ?? '/';
+
+        $siteHost = wp_parse_url(home_url(), PHP_URL_HOST);
+        if (!empty($parsed['host']) && $parsed['host'] !== $siteHost) {
+            return $url;
+        }
+
+        if (preg_match('/^\/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json)/', $path)) {
+            return $url;
+        }
+
+        $firstSegment = strtolower(explode('/', trim($path, '/'))[0] ?? '');
+        if ($firstSegment !== '' && $this->resolveUrlCodeToLocale($firstSegment) !== false) {
+            return $url;
+        }
+
+        $newPath = '/' . $langCode . $path;
+        $query = !empty($parsed['query']) ? '?' . $parsed['query'] : '';
+
+        if (!empty($parsed['host'])) {
+            $scheme = $parsed['scheme'] ?? 'https';
+            return $scheme . '://' . $parsed['host'] . $newPath . $query;
+        }
+
+        return $newPath . $query;
     }
 
     public function translateBuffer(string $buffer): string
     {
         if (empty(trim($buffer))) {
             return $buffer;
+        }
+
+        // Defense in depth: if some handler short-circuited and emitted a non-HTML
+        // response (JSON, XML, plain text), don't hand it to the HTML translator.
+        foreach (headers_list() as $header) {
+            if (stripos($header, 'content-type:') !== 0) {
+                continue;
+            }
+            if (stripos($header, 'text/html') === false) {
+                return $buffer;
+            }
+            break;
         }
 
         $targetLanguage = UNIVERSALLY_CURRENT_LOCALE;
