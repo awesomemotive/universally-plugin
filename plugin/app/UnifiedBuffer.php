@@ -134,13 +134,17 @@ class UnifiedBuffer
         if (wp_doing_ajax()) {
             return true;
         }
-        $requestUri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- parsed by wp_parse_url; sanitize_text_field would corrupt percent-encoded UTF-8 in non-Latin slugs.
+        $requestUri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '';
         $path = (string) wp_parse_url($requestUri, PHP_URL_PATH);
         if ($path !== '' && preg_match('#^/(wp-json|xmlrpc\.php|wp-trackback\.php)(/|$)#', $path)) {
             return true;
         }
         // WooCommerce AJAX (?wc-ajax=...) bypasses admin-ajax and returns JSON.
-        if (isset($_GET['wc-ajax']) || isset($_REQUEST['wc-ajax'])) {
+        // Nonce verification is irrelevant here — we're deciding whether to attach an
+        // output buffer based on the presence of a query parameter, not processing it.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        if (isset($_GET['wc-ajax'])) {
             return true;
         }
         return false;
