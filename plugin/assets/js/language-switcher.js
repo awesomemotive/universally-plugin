@@ -72,7 +72,8 @@ class UniversallySwitcher extends HTMLElement {
 
     const itemsHtml = others.map(lang => {
       const hreflang = lang.region || lang.variant || '';
-      return `<li><a href="${lang.url}" hreflang="${hreflang}" lang="${hreflang}">${labelHtml(lang)}</a></li>`;
+      const prefix = lang.urlPrefix || '';
+      return `<li><a href="${lang.url}" hreflang="${hreflang}" lang="${hreflang}" data-prefix="${prefix}">${labelHtml(lang)}</a></li>`;
     }).join('');
 
     this.shadowRoot.innerHTML = `
@@ -183,6 +184,19 @@ class UniversallySwitcher extends HTMLElement {
     this._trigger.addEventListener('click', (e) => {
       e.stopPropagation();
       this._toggle();
+    });
+
+    // When the user picks a language, persist that choice so the auto-redirect
+    // runtime honors it on future visits. Empty value = source language (no
+    // auto-redirect on subsequent loads).
+    this._dropdown.addEventListener('click', (e) => {
+      const anchor = e.target && e.target.closest ? e.target.closest('a[data-prefix]') : null;
+      if (!anchor) return;
+      const prefix = anchor.getAttribute('data-prefix') || '';
+      try {
+        document.cookie = 'universally_auto_lang=' + encodeURIComponent(prefix) +
+          '; Max-Age=31536000; Path=/; SameSite=Lax';
+      } catch (_) { /* cookie write best-effort */ }
     });
 
     document.addEventListener('click', this._onDocClick, true);

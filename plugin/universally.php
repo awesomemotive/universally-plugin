@@ -16,6 +16,7 @@
 
 use Universally\ActivationToken;
 use Universally\AdminBar;
+use Universally\AutoRedirect;
 use Universally\LanguageSwitcher;
 use Universally\Migration;
 use Universally\RestApi;
@@ -74,6 +75,7 @@ require_once __DIR__ . '/includes/entry.php';
 new UnifiedBuffer();
 (new Migration())->run();
 new LanguageSwitcher();
+new AutoRedirect();
 new AdminBar();
 new RestApi();
 new ActivationToken();

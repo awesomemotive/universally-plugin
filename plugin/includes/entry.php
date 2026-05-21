@@ -36,6 +36,22 @@ add_action('init', function (): void {
 
 add_action('wp_head', 'universally_hreflang_tags', 1);
 
+/**
+ * Bust the site-config / languages transients whenever the user visits the
+ * Universally settings page in wp-admin. They've likely been editing settings
+ * in the dashboard and now want the WP side to reflect the new state without
+ * waiting out the 15-minute transient TTL.
+ *
+ * Both hook names are registered to cover toplevel and submenu placements.
+ */
+function universally_bust_site_config_transients(): void
+{
+    delete_transient('universally_site_config');
+    delete_transient('universally_all_languages');
+}
+add_action('load-toplevel_page_' . UNIVERSALLY_SETTINGS_KEY, 'universally_bust_site_config_transients');
+add_action('load-settings_page_' . UNIVERSALLY_SETTINGS_KEY, 'universally_bust_site_config_transients');
+
 register_activation_hook(UNIVERSALLY_PLUGIN_FILE, function (): void {
     flush_rewrite_rules();
     Log::info('Universally plugin activated');

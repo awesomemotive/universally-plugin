@@ -294,6 +294,9 @@ function universally_get_hreflang_tags(): string
 
     $output = "\n<!-- Universally hreflang tags -->\n";
     $sourceUrl = '';
+    // Build a urlPrefix → URL lookup so the override pass below can resolve
+    // each mapping's target into the same per-language URL used here.
+    $urlsByPrefix = [];
 
     // Generate hreflang tags for all languages
     foreach ($languages as $lang) {
@@ -314,9 +317,36 @@ function universally_get_hreflang_tags(): string
             esc_url($lang['url'])
         );
 
+        if (!empty($lang['urlPrefix'])) {
+            $urlsByPrefix[(string) $lang['urlPrefix']] = $lang['url'];
+        }
+
         // Store source URL for x-default
         if (isset($lang['isSource']) && $lang['isSource'] === true) {
             $sourceUrl = $lang['url'];
+        }
+    }
+
+    // Auto-redirect override hreflang: for each locale mapping where the user
+    // flipped SEO on, emit an additional <link> pointing at the target's URL.
+    $autoRedirect = universally_get_auto_redirect_config();
+    $overrideMappings = $autoRedirect['mappings'] ?? [];
+    if (is_array($overrideMappings) && !empty($overrideMappings)) {
+        $emitted = [];  // dedup against the per-language tags above
+        foreach ($overrideMappings as $m) {
+            if (!is_array($m) || empty($m['seoHreflang'])) continue;
+            $source = isset($m['sourceLocale']) ? strtolower((string) $m['sourceLocale']) : '';
+            $prefix = isset($m['targetUrlPrefix']) ? (string) $m['targetUrlPrefix'] : '';
+            if ($source === '' || $prefix === '') continue;
+            if (!isset($urlsByPrefix[$prefix])) continue;
+            if (isset($emitted[$source])) continue;
+            $emitted[$source] = true;
+
+            $output .= sprintf(
+                '<link rel="alternate" hreflang="%s" href="%s" />' . "\n",
+                esc_attr($source),
+                esc_url($urlsByPrefix[$prefix])
+            );
         }
     }
 
@@ -329,6 +359,22 @@ function universally_get_hreflang_tags(): string
     }
 
     return $output;
+}
+
+/**
+ * Returns the cached `autoRedirect` block from /connect/site-config, or
+ * an empty array if unavailable.
+ */
+function universally_get_auto_redirect_config(): array
+{
+    $cacheKey = 'universally_site_config';
+    $config = get_transient($cacheKey);
+    if ($config === false) {
+        $config = universally_fetch_site_config();
+        set_transient($cacheKey, $config, 15 * MINUTE_IN_SECONDS);
+    }
+    $auto = $config['autoRedirect'] ?? null;
+    return is_array($auto) ? $auto : [];
 }
 
 /**

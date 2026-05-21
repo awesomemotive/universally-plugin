@@ -240,7 +240,7 @@ class LanguageSwitcher
         // Strip language prefix if present (e.g. /fr/checkout -> /checkout)
         $currentLang = universally_get_current_lang();
         if ($currentLang !== null) {
-            $currentPath = preg_replace('#^/' . preg_quote($currentLang, '#') . '(/|$)#', '/$1', $currentPath);
+            $currentPath = preg_replace('#^/' . preg_quote($currentLang, '#') . '(/|$)#', '/', $currentPath);
             $currentPath = rtrim($currentPath, '/');
         }
 
