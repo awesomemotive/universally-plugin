@@ -116,12 +116,13 @@ class Onboarding
         set_transient(self::STATE_KEY, $state, self::STATE_TTL);
 
         $args = [
-            'site_url'   => home_url(),
-            'site_name'  => get_bloginfo('name'),
-            'return_url' => admin_url('admin.php?page=' . self::CALLBACK_SLUG),
-            'state'      => $state,
-            'source'     => 'wp-plugin',
-            'v'          => '1',
+            'site_url'    => home_url(),
+            'site_name'   => get_bloginfo('name'),
+            'site_locale' => get_locale(),
+            'return_url'  => admin_url('admin.php?page=' . self::CALLBACK_SLUG),
+            'state'       => $state,
+            'source'      => 'wp-plugin',
+            'v'           => '1',
         ];
 
         return add_query_arg($args, $this->appBase() . '/connect');
