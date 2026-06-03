@@ -18,6 +18,7 @@ use Universally\ActivationToken;
 use Universally\AdminBar;
 use Universally\LanguageSwitcher;
 use Universally\Migration;
+use Universally\Onboarding;
 use Universally\RestApi;
 use Universally\UnifiedBuffer;
 
@@ -55,6 +56,12 @@ if (!defined('UNIVERSALLY_TRANSLATOR_URL')) {
     define('UNIVERSALLY_TRANSLATOR_URL', 'https://translator.universally.com');
 }
 
+// Universally app (hosts the onboarding/connect flow). Override in wp-config.php
+// for local development, e.g. define('UNIVERSALLY_APP_URL', 'http://localhost:3000');
+if (!defined('UNIVERSALLY_APP_URL')) {
+    define('UNIVERSALLY_APP_URL', 'https://app.universally.com');
+}
+
 if (!defined('UNIVERSALLY_DEBUG')) {
     define('UNIVERSALLY_DEBUG', false);
 }
@@ -77,3 +84,4 @@ new LanguageSwitcher();
 new AdminBar();
 new RestApi();
 new ActivationToken();
+new Onboarding();
