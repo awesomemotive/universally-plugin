@@ -12,7 +12,9 @@ return [
         [
             'icon' => 'dashicons-admin-site',
             'label' => __('Dashboard', 'universally-language-translation-multilingual-tool'),
-            'href' => 'https://app.universally.com/',
+            // UNIVERSALLY_APP_URL is the default (https://app.universally.com),
+            // overridable in wp-config.php for local/staging.
+            'href' => UNIVERSALLY_APP_URL,
         ],
         [
             'icon' => 'dashicons-book',
@@ -263,6 +265,25 @@ return [
             'suffix' => 'px',
             'default' => 6,
             'sanitize' => 'trim|text_field',
+        ],
+        [
+            'type' => 'tab',
+            'id' => 'settings_tab',
+            'label' => __('Settings', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'type' => 'section',
+            'id' => 'privacy_section',
+            'label' => __('Privacy', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'id' => 'usage_tracking',
+            'type' => 'toggle',
+            'label' => __('Anonymous Usage Data', 'universally-language-translation-multilingual-tool'),
+            'inlineLabel' => __('Share anonymous usage data to help make Universally better for everyone', 'universally-language-translation-multilingual-tool'),
+            'description' => __('You can opt out at any time. [Learn more about anonymous usage tracking.](https://universally.com/docs/usage-tracking)', 'universally-language-translation-multilingual-tool'),
+            'default' => true,
+            'sanitize' => 'bool',
         ],
     ],
 ];

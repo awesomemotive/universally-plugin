@@ -6,7 +6,7 @@
  *
  *   1. On first activation (and on demand) it redirects the admin OUT to the
  *      hosted flow at UNIVERSALLY_APP_URL/connect, passing the site URL, a
- *      return URL, and a single-use `state` nonce.
+ *      return URL, and a short-lived `state` nonce (CSRF).
  *   2. The hosted flow handles account / plan / languages, then redirects back
  *      to a hidden admin callback page with `?activation_token=…&state=…`.
  *   3. The callback validates `state`, then runs the existing activation
@@ -31,8 +31,8 @@ class Onboarding
     /** Transient holding the round-trip CSRF nonce. */
     private const STATE_KEY = 'universally_connect_state';
 
-    /** State TTL — matches the activation-token TTL on the API side. */
-    private const STATE_TTL = 600;
+    /** State TTL — long enough to span the whole hosted onboarding flow. */
+    private const STATE_TTL = 3600;
 
     /** Hidden admin page slug used as the hosted-flow return target. */
     public const CALLBACK_SLUG = 'universally-connect';
@@ -44,6 +44,22 @@ class Onboarding
         register_activation_hook(UNIVERSALLY_PLUGIN_FILE, [$this, 'scheduleRedirect']);
         add_action('admin_init', [$this, 'maybeRedirect']);
         add_action('admin_menu', [$this, 'registerCallbackPage']);
+        add_action('current_screen', [$this, 'setCallbackPageTitle']);
+    }
+
+    /**
+     * Set the page title for the (parentless) callback screen before the admin
+     * header renders. Without this, WordPress core's get_admin_page_title()
+     * leaves the global $title null and admin-header.php throws a strip_tags()
+     * deprecation on PHP 8.1+.
+     *
+     * @param \WP_Screen $screen
+     */
+    public function setCallbackPageTitle($screen): void
+    {
+        if ($screen && strpos((string) $screen->id, self::CALLBACK_SLUG) !== false) {
+            $GLOBALS['title'] = __('Connecting to Universally', self::TEXT_DOMAIN);
+        }
     }
 
     /**
@@ -100,7 +116,7 @@ class Onboarding
         add_submenu_page(
             '',
             __('Connecting to Universally', self::TEXT_DOMAIN),
-            '',
+            __('Connecting to Universally', self::TEXT_DOMAIN),
             'manage_options',
             self::CALLBACK_SLUG,
             [$this, 'renderCallback']
@@ -145,15 +161,25 @@ class Onboarding
             : '';
 
         // Validate the round-trip nonce server-side before doing anything.
+        // The state is NOT single-use: the hosted "Congratulations" screen can
+        // return here via more than one action (Dashboard / Settings), and the
+        // real credential (the activation token) is single-use server-side. The
+        // state simply expires with its transient TTL.
         $stored = get_transient(self::STATE_KEY);
         $valid  = $token !== ''
             && $state !== ''
             && is_string($stored)
             && hash_equals($stored, $state);
 
-        // State is single-use the moment a token comes back.
-        if ($token !== '') {
-            delete_transient(self::STATE_KEY);
+        // Persist the anonymous-usage-data choice made during onboarding. Stored
+        // in the panel option so the "Settings" tab toggle reflects/edits it.
+        if ($valid && isset($_GET['usage_tracking'])) {
+            $settings = get_option(UNIVERSALLY_SETTINGS_KEY, []);
+            if (!is_array($settings)) {
+                $settings = [];
+            }
+            $settings['usage_tracking'] = sanitize_text_field(wp_unslash($_GET['usage_tracking'])) === '1';
+            update_option(UNIVERSALLY_SETTINGS_KEY, $settings);
         }
 
         $this->renderShell(function () use ($token, $valid): void {
@@ -243,14 +269,6 @@ class Onboarding
             <p><?php esc_html_e('Finishing the secure handshake with Universally.', self::TEXT_DOMAIN); ?></p>
         </div>
 
-        <div id="uvly-step-done" class="uvly-connect--hidden">
-            <h1 class="uvly-connect__ok"><?php esc_html_e('Connected ✓', self::TEXT_DOMAIN); ?></h1>
-            <p id="uvly-done-detail"></p>
-            <a class="uvly-connect__btn" href="<?php echo esc_url($settingsUrl); ?>">
-                <?php esc_html_e('Go to Settings', self::TEXT_DOMAIN); ?>
-            </a>
-        </div>
-
         <div id="uvly-step-error" class="uvly-connect--hidden">
             <h1><?php esc_html_e('We couldn’t finish connecting', self::TEXT_DOMAIN); ?></h1>
             <p class="uvly-connect__err" id="uvly-error-detail"></p>
@@ -270,7 +288,7 @@ class Onboarding
             var token = <?php echo wp_json_encode($token); ?>;
 
             function show(id) {
-                ['uvly-step-connecting', 'uvly-step-done', 'uvly-step-error'].forEach(function (s) {
+                ['uvly-step-connecting', 'uvly-step-error'].forEach(function (s) {
                     document.getElementById(s).classList.toggle('uvly-connect--hidden', s !== id);
                 });
             }
@@ -292,12 +310,8 @@ class Onboarding
                 if (!ex || !ex.success) { return fail(ex && ex.message); }
                 return post('activation/commit', { exchangeId: ex.exchangeId }).then(function (co) {
                     if (!co || !co.success) { return fail(co && co.message); }
-                    var info = (ex.displayInfo) || {};
-                    var detail = info.workspaceName
-                        ? <?php echo wp_json_encode(__('Connected to', self::TEXT_DOMAIN)); ?> + ' ' + info.workspaceName
-                        : '';
-                    document.getElementById('uvly-done-detail').textContent = detail;
-                    show('uvly-step-done');
+                    // Connected — go straight to the Universally dashboard.
+                    window.location.href = <?php echo wp_json_encode($settingsUrl); ?>;
                 });
             }).catch(function () {
                 fail(<?php echo wp_json_encode(__('Network error. Please try again.', self::TEXT_DOMAIN)); ?>);
