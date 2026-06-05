@@ -37,8 +37,6 @@ class Onboarding
     /** Hidden admin page slug used as the hosted-flow return target. */
     public const CALLBACK_SLUG = 'universally-connect';
 
-    private const TEXT_DOMAIN = 'universally-language-translation-multilingual-tool';
-
     public function __construct()
     {
         register_activation_hook(UNIVERSALLY_PLUGIN_FILE, [$this, 'scheduleRedirect']);
@@ -58,7 +56,8 @@ class Onboarding
     public function setCallbackPageTitle($screen): void
     {
         if ($screen && strpos((string) $screen->id, self::CALLBACK_SLUG) !== false) {
-            $GLOBALS['title'] = __('Connecting to Universally', self::TEXT_DOMAIN);
+            // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- intentional: core leaves $title null on this parentless page, triggering a strip_tags() deprecation in admin-header.php on PHP 8.1+.
+            $GLOBALS['title'] = __('Connecting to Universally', 'universally-language-translation-multilingual-tool');
         }
     }
 
@@ -70,6 +69,7 @@ class Onboarding
      */
     public function scheduleRedirect(): void
     {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only bulk-activation guard mirroring WP core's own `activate-multi` check; no state change.
         if (is_network_admin() || isset($_GET['activate-multi'])) {
             return;
         }
@@ -93,6 +93,7 @@ class Onboarding
         // One-shot: clear before redirecting so it never loops.
         delete_transient(self::REDIRECT_FLAG);
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only bulk-activation guard mirroring WP core's own `activate-multi` check; no state change.
         if (is_network_admin() || isset($_GET['activate-multi'])) {
             return;
         }
@@ -115,8 +116,8 @@ class Onboarding
     {
         add_submenu_page(
             '',
-            __('Connecting to Universally', self::TEXT_DOMAIN),
-            __('Connecting to Universally', self::TEXT_DOMAIN),
+            __('Connecting to Universally', 'universally-language-translation-multilingual-tool'),
+            __('Connecting to Universally', 'universally-language-translation-multilingual-tool'),
             'manage_options',
             self::CALLBACK_SLUG,
             [$this, 'renderCallback']
@@ -159,9 +160,10 @@ class Onboarding
     public function renderCallback(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('You do not have permission to access this page.', self::TEXT_DOMAIN));
+            wp_die(esc_html__('You do not have permission to access this page.', 'universally-language-translation-multilingual-tool'));
         }
 
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- this IS the nonce check: `state` is a custom CSRF nonce validated below via hash_equals() against a server-side transient. A WP nonce can't be used because the round-trip originates off-site (the hosted flow), not from a WP-rendered form.
         $token = isset($_GET['activation_token'])
             ? sanitize_text_field(wp_unslash($_GET['activation_token']))
             : '';
@@ -190,13 +192,14 @@ class Onboarding
             $settings['usage_tracking'] = sanitize_text_field(wp_unslash($_GET['usage_tracking'])) === '1';
             update_option(UNIVERSALLY_SETTINGS_KEY, $settings);
         }
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
         $this->renderShell(function () use ($token, $valid): void {
             if ($token === '') {
                 $this->renderLanding();
             } elseif (!$valid) {
                 $this->renderError(
-                    __('This connection link is invalid or has expired. Please try connecting again.', self::TEXT_DOMAIN)
+                    __('This connection link is invalid or has expired. Please try connecting again.', 'universally-language-translation-multilingual-tool')
                 );
             } else {
                 $this->renderConnecting($token);
@@ -249,14 +252,14 @@ class Onboarding
         $connectUrl  = $this->buildConnectUrl();
         $settingsUrl = admin_url('admin.php?page=' . UNIVERSALLY_SETTINGS_KEY);
         ?>
-        <h1><?php esc_html_e('Connect your site to Universally', self::TEXT_DOMAIN); ?></h1>
-        <p><?php esc_html_e('Create your account, choose a plan, and pick your languages — then we’ll bring you right back here, connected.', self::TEXT_DOMAIN); ?></p>
+        <h1><?php esc_html_e('Connect your site to Universally', 'universally-language-translation-multilingual-tool'); ?></h1>
+        <p><?php esc_html_e('Create your account, choose a plan, and pick your languages — then we’ll bring you right back here, connected.', 'universally-language-translation-multilingual-tool'); ?></p>
         <a class="uvly-connect__btn" href="<?php echo esc_url($connectUrl); ?>">
-            <?php esc_html_e('Connect to Universally', self::TEXT_DOMAIN); ?>
+            <?php esc_html_e('Connect to Universally', 'universally-language-translation-multilingual-tool'); ?>
         </a>
         <br>
         <a class="uvly-connect__link" href="<?php echo esc_url($settingsUrl); ?>">
-            <?php esc_html_e('Already have an API key? Enter it manually', self::TEXT_DOMAIN); ?>
+            <?php esc_html_e('Already have an API key? Enter it manually', 'universally-language-translation-multilingual-tool'); ?>
         </a>
         <?php
     }
@@ -274,19 +277,19 @@ class Onboarding
         ?>
         <div id="uvly-step-connecting">
             <div class="uvly-connect__spinner"></div>
-            <h1><?php esc_html_e('Connecting your site…', self::TEXT_DOMAIN); ?></h1>
-            <p><?php esc_html_e('Finishing the secure handshake with Universally.', self::TEXT_DOMAIN); ?></p>
+            <h1><?php esc_html_e('Connecting your site…', 'universally-language-translation-multilingual-tool'); ?></h1>
+            <p><?php esc_html_e('Finishing the secure handshake with Universally.', 'universally-language-translation-multilingual-tool'); ?></p>
         </div>
 
         <div id="uvly-step-error" class="uvly-connect--hidden">
-            <h1><?php esc_html_e('We couldn’t finish connecting', self::TEXT_DOMAIN); ?></h1>
+            <h1><?php esc_html_e('We couldn’t finish connecting', 'universally-language-translation-multilingual-tool'); ?></h1>
             <p class="uvly-connect__err" id="uvly-error-detail"></p>
             <a class="uvly-connect__btn" href="<?php echo esc_url($retryUrl); ?>">
-                <?php esc_html_e('Try again', self::TEXT_DOMAIN); ?>
+                <?php esc_html_e('Try again', 'universally-language-translation-multilingual-tool'); ?>
             </a>
             <br>
             <a class="uvly-connect__link" href="<?php echo esc_url($settingsUrl); ?>">
-                <?php esc_html_e('Or enter your API key manually', self::TEXT_DOMAIN); ?>
+                <?php esc_html_e('Or enter your API key manually', 'universally-language-translation-multilingual-tool'); ?>
             </a>
         </div>
 
@@ -303,7 +306,7 @@ class Onboarding
             }
             function fail(msg) {
                 document.getElementById('uvly-error-detail').textContent =
-                    msg || <?php echo wp_json_encode(__('Something went wrong. Please try again.', self::TEXT_DOMAIN)); ?>;
+                    msg || <?php echo wp_json_encode(__('Something went wrong. Please try again.', 'universally-language-translation-multilingual-tool')); ?>;
                 show('uvly-step-error');
             }
             function post(path, body) {
@@ -323,7 +326,7 @@ class Onboarding
                     window.location.href = <?php echo wp_json_encode($settingsUrl); ?>;
                 });
             }).catch(function () {
-                fail(<?php echo wp_json_encode(__('Network error. Please try again.', self::TEXT_DOMAIN)); ?>);
+                fail(<?php echo wp_json_encode(__('Network error. Please try again.', 'universally-language-translation-multilingual-tool')); ?>);
             });
         })();
         </script>
@@ -334,10 +337,10 @@ class Onboarding
     {
         $retryUrl = admin_url('admin.php?page=' . self::CALLBACK_SLUG);
         ?>
-        <h1><?php esc_html_e('Connection link expired', self::TEXT_DOMAIN); ?></h1>
+        <h1><?php esc_html_e('Connection link expired', 'universally-language-translation-multilingual-tool'); ?></h1>
         <p class="uvly-connect__err"><?php echo esc_html($message); ?></p>
         <a class="uvly-connect__btn" href="<?php echo esc_url($retryUrl); ?>">
-            <?php esc_html_e('Try again', self::TEXT_DOMAIN); ?>
+            <?php esc_html_e('Try again', 'universally-language-translation-multilingual-tool'); ?>
         </a>
         <?php
     }
