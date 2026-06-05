@@ -68,6 +68,30 @@ class RestApi
             'permission_callback' => [$this, 'checkSecretKey'],
         ]);
 
+        // Connection check (called by the app to verify the plugin is connected).
+        // Authenticated server-to-server with the site's private key.
+        register_rest_route(self::NAMESPACE, '/ping', [
+            'methods' => 'GET',
+            'callback' => [$this, 'ping'],
+            'permission_callback' => [$this, 'checkSecretKey'],
+        ]);
+
+    }
+
+    /**
+     * GET /ping — confirm the plugin is installed and holds a matching key.
+     * The secret-key permission check is the actual verification; reaching this
+     * means the app's key matches the one stored here.
+     *
+     * @return WP_REST_Response
+     */
+    public function ping(): WP_REST_Response
+    {
+        return new WP_REST_Response([
+            'success'   => true,
+            'connected' => true,
+            'version'   => defined('UNIVERSALLY_VERSION') ? UNIVERSALLY_VERSION : null,
+        ], 200);
     }
 
     /**
