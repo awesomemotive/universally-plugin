@@ -220,14 +220,18 @@ class Onboarding
     {
         ?>
         <div class="uvly-connect">
-            <div class="uvly-connect__brand">Universally</div>
+            <img
+                class="uvly-connect__brand"
+                src="<?php echo esc_url(UNIVERSALLY_PLUGIN_URI . 'assets/logo-full-dark.svg'); ?>"
+                alt="Universally"
+            />
             <div class="uvly-connect__card">
                 <?php $content(); ?>
             </div>
         </div>
         <style>
             .uvly-connect { max-width: 640px; margin: 64px auto; text-align: center; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-            .uvly-connect__brand { font-size: 22px; font-weight: 700; color: #650cdf; margin-bottom: 28px; }
+            .uvly-connect__brand { display: inline-block; height: 28px; width: auto; margin-bottom: 28px; }
             .uvly-connect__card { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; padding: 40px; }
             .uvly-connect__card h1 { font-size: 22px; margin: 0 0 10px; }
             .uvly-connect__card p { color: #50575e; font-size: 14px; margin: 0 0 8px; }

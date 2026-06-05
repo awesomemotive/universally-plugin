@@ -1,3 +1,8 @@
+// Anchor the section so the languages toolbar can be lifted into its header.
+.wp-panel-section.components-panel__body:has(.wp-panel-field--languages-table) {
+  position: relative;
+}
+
 // Make this field type span full width (both label + control columns)
 .wp-panel-section.components-panel__body > :is(.wp-panel-field.wp-panel-field--languages-table):not(.components-panel__body-title) {
   grid-template-columns: 1fr;
@@ -61,42 +66,64 @@
     color: #757575;
   }
 
+  // Lifted into the section's header bar (which is ~63px tall and has the
+  // collapse arrow at the far right — we sit to the left of it).
   &__actions {
+    position: absolute;
+    top: 16px;
+    right: 56px;
+    z-index: 2;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 16px;
-    padding: 8px var(--wp-panel-spacing, 16px);
-    border-bottom: 1px solid #f0f0f1;
+    gap: 8px;
   }
 
-  &__refresh {
+  &__btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: transparent;
-    border: 1px solid #c3c4c7;
     border-radius: 4px;
-    padding: 4px 10px;
+    padding: 5px 12px;
     font-size: 12px;
     font-weight: 500;
-    color: #1e1e1e;
+    line-height: 1.4;
     cursor: pointer;
+    text-decoration: none;
     transition: background 0.12s ease, border-color 0.12s ease;
 
     svg {
-      width: 12px;
-      height: 12px;
-    }
-
-    &:hover:not(:disabled) {
-      background: #f6f7f7;
-      border-color: #8c8f94;
+      width: 13px;
+      height: 13px;
     }
 
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+
+    // Secondary (Refresh): bordered, neutral.
+    &--refresh {
+      background: transparent;
+      border: 1px solid #c3c4c7;
+      color: #1e1e1e;
+
+      &:hover:not(:disabled) {
+        background: #f6f7f7;
+        border-color: #8c8f94;
+      }
+    }
+
+    // Primary (Add Languages): brand-filled.
+    &--add {
+      background: var(--wp-panel-primary, #650cdf);
+      border: 1px solid var(--wp-panel-primary, #650cdf);
+      color: #fff;
+
+      &:hover {
+        background: var(--wp-panel-primary-hover, #5409b8);
+        border-color: var(--wp-panel-primary-hover, #5409b8);
+        color: #fff;
+      }
     }
   }
 
@@ -109,10 +136,105 @@
     to   { transform: rotate(360deg); }
   }
 
-  &__dashboard-link {
+  // Reach-framed "add more languages" upsell CTA under the table / empty state.
+  &__cta {
+    margin: 16px var(--wp-panel-spacing, 16px) 4px;
+    padding: 18px;
+    border: 1px solid #e6e1f5;
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(101, 12, 223, 0.04), rgba(101, 12, 223, 0.01));
+  }
+
+  &__cta-head {
+    margin-bottom: 12px;
+  }
+
+  &__cta-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e1e1e;
+  }
+
+  &__cta-desc {
+    margin: 4px 0 0;
     font-size: 12px;
-    font-weight: 500;
-    color: var(--wp-panel-primary, #0073aa);
+    color: #50575e;
+  }
+
+  &__cta-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #ece8f7;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  &__cta-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #f0eefb;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__cta-flag {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  &__cta-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__cta-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e1e1e;
+  }
+
+  &__cta-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+
+    &--rose {
+      color: #b42318;
+      background: #fef3f2;
+    }
+
+    &--blue {
+      color: #175cd3;
+      background: #eff8ff;
+    }
+  }
+
+  &__cta-speakers {
+    font-size: 12px;
+    color: #757575;
+  }
+
+  &__cta-all {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--wp-panel-primary, #650cdf);
     text-decoration: none;
 
     &:hover {

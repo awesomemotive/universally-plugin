@@ -4,18 +4,23 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Build the hosted-onboarding "Connect" URL only when actually rendering the
-// settings admin page. This file is required on every `init` (front-end, admin,
-// and REST), and buildConnectUrl() persists a state nonce — so calling it
-// unconditionally would churn the nonce and do needless work on every request.
+// Only do per-page work (which may hit the API or mint a nonce) when actually
+// rendering the settings admin page. This file is required on every `init`
+// (front-end, admin, and REST), so doing it unconditionally would churn the
+// connect-state nonce and fetch site config on every request.
 $universally_connect_url = '';
+$universally_project_id  = '';
 if (
     is_admin()
     && isset($_GET['page']) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
     && sanitize_key(wp_unslash($_GET['page'])) === UNIVERSALLY_SETTINGS_KEY // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-    && class_exists(\Universally\Onboarding::class)
 ) {
-    $universally_connect_url = (new \Universally\Onboarding())->buildConnectUrl();
+    if (class_exists(\Universally\Onboarding::class)) {
+        $universally_connect_url = (new \Universally\Onboarding())->buildConnectUrl();
+    }
+    // Project id lets the Languages table deep-link into the dashboard
+    // ({app}/projects/{id}/languages). Empty when not connected.
+    $universally_project_id = universally_get_site_id();
 }
 
 return [
@@ -58,16 +63,21 @@ return [
             'type' => 'api-key',
             'endpoint' => 'universally/v1/validate-api-key',
             'label' => __('Connection', 'universally-language-translation-multilingual-tool'),
-            'description' => __('Connect your site to Universally to start translating. We’ll guide you through account setup, your plan, and languages — then bring you right back here.', 'universally-language-translation-multilingual-tool'),
             'placeholder' => __('64-character API key', 'universally-language-translation-multilingual-tool'),
             'validate' => 'regex:/^[a-fA-F0-9]{64}$/',
             'sanitize' => 'trim|text_field',
             'connect' => true,
             'connectUrl' => $universally_connect_url,
             'connectLabel' => __('Connect to Universally', 'universally-language-translation-multilingual-tool'),
+            // Shown only in the disconnected state (the connected state is a
+            // status block, so a static "connect…" description would be wrong).
+            'connectDescription' => __('Connect your site to Universally to start translating. We’ll guide you through account setup, your plan, and languages — then bring you right back here.', 'universally-language-translation-multilingual-tool'),
             'connectedLabel' => __('Your site is connected to Universally', 'universally-language-translation-multilingual-tool'),
             'manualLabel' => __('Already have an API key? Enter it manually', 'universally-language-translation-multilingual-tool'),
             'disconnectLabel' => __('Disconnect', 'universally-language-translation-multilingual-tool'),
+            'disconnectedLabel' => __('Universally disconnected', 'universally-language-translation-multilingual-tool'),
+            'statusLabel' => __('API status', 'universally-language-translation-multilingual-tool'),
+            'statusValue' => __('Operational', 'universally-language-translation-multilingual-tool'),
         ],
         [
             'type' => 'section',
@@ -80,8 +90,11 @@ return [
             'type' => 'languages-table',
             'label' => '',
             'endpoint' => 'universally/v1/languages',
-            // "Open Dashboard" link target — resolves the wp-config override.
+            // "Add Languages" link target — resolves the wp-config override.
             'appUrl' => universally_get_app_url(),
+            // When known, deep-links to this project's language panel:
+            // {appUrl}/projects/{projectId}/languages.
+            'projectId' => $universally_project_id,
         ],
         [
             'type' => 'tab',

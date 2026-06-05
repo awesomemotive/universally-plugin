@@ -10,9 +10,15 @@ interface FieldConfig {
   /** Hosted onboarding URL the "Connect" button links to (built server-side with a fresh state). */
   connectUrl?: string;
   connectLabel?: string;
+  connectDescription?: string;
   connectedLabel?: string;
   manualLabel?: string;
   disconnectLabel?: string;
+  /** Notice shown after disconnecting (connect mode). */
+  disconnectedLabel?: string;
+  /** Connected-state "API status" row labels. */
+  statusLabel?: string;
+  statusValue?: string;
   [key: string]: unknown;
 }
 
@@ -87,7 +93,8 @@ export function ApiKeyField({ fieldId, config }: Props) {
       setInputValue('');
       setValid(false);
       setShowManual(false);
-      setMessage(res.message);
+      // In connect mode show a branded confirmation rather than the raw API message.
+      setMessage(config.connect ? (config.disconnectedLabel ?? 'Universally disconnected') : res.message);
       setMessageType('info');
     }
   };
@@ -140,6 +147,13 @@ export function ApiKeyField({ fieldId, config }: Props) {
     </div>
   ) : null;
 
+  // Connect mode renders feedback as a notice/alert box rather than plain text.
+  const noticeEl = feedback ? (
+    <div className={`wp-panel-api-key__notice wp-panel-api-key__notice--${feedbackClass}`} role="status">
+      {feedback}
+    </div>
+  ) : null;
+
   // Connect mode: launch the hosted onboarding instead of pasting a key.
   if (config.connect) {
     // Hold the layout until we know the connection state — no Connect→Connected flicker.
@@ -153,7 +167,7 @@ export function ApiKeyField({ fieldId, config }: Props) {
 
     if (valid) {
       return (
-        <div className="wp-panel-api-key">
+        <div className="wp-panel-api-key wp-panel-api-key--status">
           <div className="wp-panel-api-key__connected">
             <span className="wp-panel-api-key__connected-badge">
               <span className="wp-panel-api-key__checkmark">&#10003;</span>
@@ -168,13 +182,24 @@ export function ApiKeyField({ fieldId, config }: Props) {
               {loading ? 'Working...' : (config.disconnectLabel ?? 'Disconnect')}
             </button>
           </div>
-          {feedbackEl}
+          <div className="wp-panel-api-key__status">
+            <span className="wp-panel-api-key__status-dot" aria-hidden="true" />
+            <span className="wp-panel-api-key__status-label">
+              {config.statusLabel ?? 'API status'}:{' '}
+              <strong className="wp-panel-api-key__status-value">
+                {config.statusValue ?? 'Operational'}
+              </strong>
+            </span>
+          </div>
         </div>
       );
     }
 
     return (
       <div className="wp-panel-api-key">
+        {config.connectDescription && (
+          <p className="wp-panel-api-key__connect-desc">{config.connectDescription}</p>
+        )}
         {config.connectUrl && (
           <a className="wp-panel-api-key__connect-btn" href={config.connectUrl}>
             {config.connectLabel ?? 'Connect to Universally'}
@@ -191,7 +216,7 @@ export function ApiKeyField({ fieldId, config }: Props) {
             {config.manualLabel ?? 'Already have an API key? Enter it manually'}
           </button>
         )}
-        {feedbackEl}
+        {noticeEl}
       </div>
     );
   }

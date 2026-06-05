@@ -146,7 +146,18 @@ class RestApi
         $action = $body['action'] ?? null;
 
         if ($action === 'deactivate') {
+            // Tell the app we're disconnecting (best-effort) so the dashboard
+            // stops showing the site as connected. Must run while we still hold
+            // the key, before we forget it below.
+            $key = universally_get_api_key();
+            if ($key !== '') {
+                $this->http->post('/connect/disconnect', [], ['X-API-Key' => $key]);
+            }
+
             delete_option('universally_api_key');
+            delete_transient('universally_site_config');
+            delete_transient('universally_all_languages');
+
             return new WP_REST_Response([
                 'valid'   => false,
                 'message' => __('API key deactivated.', 'universally-language-translation-multilingual-tool'),
