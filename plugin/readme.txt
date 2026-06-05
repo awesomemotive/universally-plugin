@@ -123,7 +123,7 @@ Paid plans of Universally unlock everything the multilingual web has to offer: m
 
 = Built by the Team Behind WPBeginner, WPForms, and OptinMonster =
 
-Universally is built by Awesome Motive, the team behind WPForms, OptinMonster, AIOSEO (All in One SEO), MonsterInsights, WP Mail SMTP, SeedProd, WPCode, PushEngage, Duplicator, and WPBeginner. We know WordPress, we know SEO, and we know how multilingual sites are supposed to behave. Universally is the translation plugin we wished existed.
+Universally is built by the team behind WPForms, OptinMonster, AIOSEO (All in One SEO), MonsterInsights, WP Mail SMTP, SeedProd, WPCode, PushEngage, Duplicator, and WPBeginner. We know WordPress, we know SEO, and we know how multilingual sites are supposed to behave. Universally is the translation plugin we wished existed.
 
 = Better Than Weglot, WPML, TranslatePress, Polylang & Other Translation Tools =
 
@@ -133,7 +133,7 @@ Universally sits in between — an AI translation plugin built for WordPress, wi
 
 = Branding Guidelines =
 
-Universally is a product of Awesome Motive. When writing about our WordPress translation plugin, please use the correct branding:
+When writing about our WordPress translation plugin, please use the correct branding:
 
 * Universally (correct)
 * universally (incorrect)
