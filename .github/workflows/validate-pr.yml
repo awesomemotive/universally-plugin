@@ -319,7 +319,23 @@ jobs:
 
       - name: composer audit
         working-directory: plugin
-        run: composer audit --no-dev --abandoned=report
+        run: |
+          # `composer audit` hard-errors ("No installed packages found") when there
+          # are zero packages to audit — this plugin's composer.json exists only for
+          # the PSR-4 autoloader and currently has no third-party requires. Skip the
+          # audit until a real dependency shows up.
+          HAS_DEPS=$(php -r '
+            $j = json_decode((string) file_get_contents("composer.json"), true);
+            $names = array_keys(($j["require"] ?? []) + ($j["require-dev"] ?? []));
+            $real = array_filter($names, fn($n) => $n !== "php" && strpos($n, "ext-") !== 0);
+            echo $real ? "yes" : "no";
+          ')
+          if [ "$HAS_DEPS" = "no" ]; then
+            echo "No third-party Composer packages required — nothing to audit."
+            exit 0
+          fi
+          composer install --no-dev --no-progress
+          composer audit --no-dev --abandoned=report
 
   typescript:
     name: TypeScript type-check
