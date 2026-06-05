@@ -124,11 +124,20 @@ class Onboarding
     }
 
     /**
-     * Build the hosted onboarding URL and persist a fresh state nonce.
+     * Build the hosted onboarding URL, persisting a round-trip state nonce.
+     *
+     * The state is reused while it's still valid (only generated when absent) so
+     * that rendering the "Connect" button on the settings page — which can happen
+     * repeatedly, even mid-flow — never rotates the nonce out from under an
+     * in-progress connection. The TTL is always refreshed so the window slides
+     * forward on each build.
      */
     public function buildConnectUrl(): string
     {
-        $state = wp_generate_password(32, false);
+        $state = get_transient(self::STATE_KEY);
+        if (!is_string($state) || $state === '') {
+            $state = wp_generate_password(32, false);
+        }
         set_transient(self::STATE_KEY, $state, self::STATE_TTL);
 
         $args = [
@@ -339,7 +348,7 @@ class Onboarding
 
     private function appBase(): string
     {
-        return rtrim(UNIVERSALLY_APP_URL, '/');
+        return universally_get_app_url();
     }
 
     /**

@@ -51,4 +51,80 @@
     margin-right: 4px;
     font-weight: 700;
   }
+
+  /* ---- Connect mode ---- */
+
+  &__checking {
+    font-size: 13px;
+    color: #646970;
+  }
+
+  &__connect-btn {
+    display: inline-block;
+    padding: 9px 20px;
+    border-radius: 6px;
+    background: var(--wp-panel-primary, #650cdf);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover,
+    &:focus {
+      background: var(--wp-panel-primary-hover, #5409b8);
+      color: #fff;
+    }
+  }
+
+  &__manual-toggle {
+    display: inline-block;
+    margin-left: 16px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--wp-panel-primary, #650cdf);
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  &__manual {
+    margin-top: 12px;
+  }
+
+  &__connected {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  &__connected-badge {
+    display: inline-flex;
+    align-items: center;
+    color: #00a32a;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  &__disconnect {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #646970;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+
+    &:hover:not(:disabled) {
+      color: #d63638;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
 }

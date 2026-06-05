@@ -76,7 +76,7 @@ export function LanguagesTableField({fieldId, config}: Props) {
             </button>
             <a
                 className="wp-panel-languages-table__dashboard-link"
-                href="https://app.universally.com"
+                href={(config.appUrl as string) || 'https://app.universally.com'}
                 target="_blank"
                 rel="noopener noreferrer"
             >

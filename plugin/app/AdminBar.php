@@ -39,7 +39,7 @@ class AdminBar
                     . '<div><span class="universally-adminbar-alert__text">' . esc_html__('Usage limit reached', 'universally-language-translation-multilingual-tool') . '</span></div>'
                     . '<div><span class="universally-adminbar-alert__cta">' . esc_html__('Upgrade', 'universally-language-translation-multilingual-tool') . ' &rarr;</span></div>'
                     . '</div>',
-                'href'   => 'https://app.universally.com/billing/',
+                'href'   => universally_get_app_url() . '/billing/',
                 'meta'   => [
                     'class'  => 'universally-adminbar-limit-warning',
                     'target' => '_blank',
@@ -81,7 +81,7 @@ class AdminBar
             'id'     => 'universally-dashboard',
             'parent' => 'universally',
             'title'  => __('App Dashboard', 'universally-language-translation-multilingual-tool'),
-            'href'   => 'https://app.universally.com/',
+            'href'   => universally_get_app_url() . '/',
             'meta'   => ['target' => '_blank'],
         ]);
 

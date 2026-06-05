@@ -4,6 +4,20 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Build the hosted-onboarding "Connect" URL only when actually rendering the
+// settings admin page. This file is required on every `init` (front-end, admin,
+// and REST), and buildConnectUrl() persists a state nonce — so calling it
+// unconditionally would churn the nonce and do needless work on every request.
+$universally_connect_url = '';
+if (
+    is_admin()
+    && isset($_GET['page']) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    && sanitize_key(wp_unslash($_GET['page'])) === UNIVERSALLY_SETTINGS_KEY // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    && class_exists(\Universally\Onboarding::class)
+) {
+    $universally_connect_url = (new \Universally\Onboarding())->buildConnectUrl();
+}
+
 return [
     'id' => 'universally_settings',
     'title' => 'Universally',
@@ -12,9 +26,9 @@ return [
         [
             'icon' => 'dashicons-admin-site',
             'label' => __('Dashboard', 'universally-language-translation-multilingual-tool'),
-            // UNIVERSALLY_APP_URL is the default (https://app.universally.com),
-            // overridable in wp-config.php for local/staging.
-            'href' => UNIVERSALLY_APP_URL,
+            // Resolves through universally_get_app_url() so the wp-config override
+            // (UNIVERSALLY_APP_URL) lives in exactly one place.
+            'href' => universally_get_app_url(),
         ],
         [
             'icon' => 'dashicons-book',
@@ -43,11 +57,17 @@ return [
             'id' => 'api_key',
             'type' => 'api-key',
             'endpoint' => 'universally/v1/validate-api-key',
-            'label' => __('API Key', 'universally-language-translation-multilingual-tool'),
-            'description' => __('Enter your API key to receive updates and support. The API key can be found in the app under the [Api Settings](https://app.universally.com/) section.', 'universally-language-translation-multilingual-tool'),
+            'label' => __('Connection', 'universally-language-translation-multilingual-tool'),
+            'description' => __('Connect your site to Universally to start translating. We’ll guide you through account setup, your plan, and languages — then bring you right back here.', 'universally-language-translation-multilingual-tool'),
             'placeholder' => __('64-character API key', 'universally-language-translation-multilingual-tool'),
             'validate' => 'regex:/^[a-fA-F0-9]{64}$/',
             'sanitize' => 'trim|text_field',
+            'connect' => true,
+            'connectUrl' => $universally_connect_url,
+            'connectLabel' => __('Connect to Universally', 'universally-language-translation-multilingual-tool'),
+            'connectedLabel' => __('Your site is connected to Universally', 'universally-language-translation-multilingual-tool'),
+            'manualLabel' => __('Already have an API key? Enter it manually', 'universally-language-translation-multilingual-tool'),
+            'disconnectLabel' => __('Disconnect', 'universally-language-translation-multilingual-tool'),
         ],
         [
             'type' => 'section',
@@ -60,6 +80,8 @@ return [
             'type' => 'languages-table',
             'label' => '',
             'endpoint' => 'universally/v1/languages',
+            // "Open Dashboard" link target — resolves the wp-config override.
+            'appUrl' => universally_get_app_url(),
         ],
         [
             'type' => 'tab',

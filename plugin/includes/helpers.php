@@ -24,6 +24,20 @@ function universally_get_api_key(): string
 }
 
 /**
+ * Get the Universally app base URL (no trailing slash).
+ *
+ * Defaults to the production app, overridable in wp-config.php for
+ * local/staging via `define('UNIVERSALLY_APP_URL', 'http://localhost:3000');`.
+ * Single source of truth — every "Dashboard"/app link should resolve through
+ * this so the override only lives in one place.
+ */
+function universally_get_app_url(): string
+{
+    $url = defined('UNIVERSALLY_APP_URL') ? UNIVERSALLY_APP_URL : 'https://app.universally.com';
+    return rtrim($url, '/');
+}
+
+/**
  * Get the public API key (first 32 chars).
  */
 function universally_get_public_api_key(): string
