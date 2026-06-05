@@ -245,6 +245,9 @@ You can reach our support team through the [Universally dashboard](https://app.u
 
 == Changelog ==
 
+= 1.0.5 =
+* Fix: selecting the source language in the switcher now reliably restores the original language. The stored preference is cleared server-side, so switching back works in new tabs, on subdirectory and multisite installs, and with WordPress 6.8+ speculative loading.
+
 = 1.0.4 =
 * Fix: posting a comment from a translated page no longer drops the visitor back into the source language — the post-submit redirect stays on the translated URL.
 * Fix: excluded pages now redirect to their canonical (unprefixed) URL so the address bar matches the rendered content.
