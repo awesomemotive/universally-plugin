@@ -129,6 +129,23 @@ jobs:
         id: stage
         run: bash scripts/build.sh
 
+      # TEMPORARY workaround — remove once @wordpress/env ships the zip-extraction
+      # fix (extract-zip → adm-zip, merged in WordPress/gutenberg#78828; broken in
+      # ≤11.8.0). On the ubuntu-24.04 runner image shipping Node 24.16+, wp-env's
+      # zip extraction hangs and Node exits 0 before Docker starts, so every
+      # `wp-env run` fails with "Environment not initialized"
+      # (WordPress/plugin-check-action#579). plugin-check-action requests
+      # `node-version: '24'`, which setup-node resolves to the highest 24.x in the
+      # runner toolcache — pre-seed 24.15.0 (last good) and drop newer 24.x so the
+      # action's wp-env runs on a working Node.
+      - name: Pin Node 24.15.0 for plugin-check-action (wp-env boot hang on 24.16+)
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24.15.0'
+
+      - name: Drop newer Node 24.x from toolcache so the pin wins
+        run: find "$RUNNER_TOOL_CACHE/node" -maxdepth 1 -type d -name '24.*' ! -name '24.15.0' -exec rm -rf {} +
+
       - uses: wordpress/plugin-check-action@v1
         with:
           build-dir: build/staging/${{ env.SLUG }}
