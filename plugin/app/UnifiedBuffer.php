@@ -17,6 +17,7 @@ if (!defined('ABSPATH')) {
 class UnifiedBuffer
 {
     private const LANG_COOKIE = 'universally_lang';
+    private const SWITCH_PARAM = 'universally_switch';
 
     public function __construct()
     {
@@ -83,8 +84,17 @@ class UnifiedBuffer
             $targetLocale = $refererLocale;
             $pathAfterPrefix = null;
         } elseif ($detected === false) {
-            // GET without a URL prefix — honor the visitor's stored preference unless
-            // they've explicitly opted back into the source language via the switcher.
+            // GET without a URL prefix. An explicit ?universally_switch=source marker
+            // (added by the switcher to the source-language link) means the visitor
+            // opted back into the source language: clear the stored preference with
+            // the same cookie attributes used to set it, then redirect to the clean
+            // URL. Handled server-side so it works even when the switcher's click
+            // handler doesn't run (new tab, prefetch, cookie path/domain mismatch).
+            if ($this->isSourceSwitchRequest()) {
+                $this->clearLanguageCookie();
+                $this->redirectToCleanUrl();
+            }
+            // Otherwise honor the visitor's stored preference.
             $preferredLang = $this->getPreferredLanguageFromCookie();
             if ($preferredLang !== null) {
                 $this->redirectToPreferredLanguage($preferredLang);
@@ -282,20 +292,71 @@ class UnifiedBuffer
             return;
         }
 
-        setcookie(
-            self::LANG_COOKIE,
-            $langCode,
-            [
-                'expires' => time() + 30 * DAY_IN_SECONDS,
-                'path' => defined('COOKIEPATH') && COOKIEPATH ? COOKIEPATH : '/',
-                'domain' => defined('COOKIE_DOMAIN') ? COOKIE_DOMAIN : '',
-                'secure' => is_ssl(),
-                'httponly' => false,
-                'samesite' => 'Lax',
-            ]
-        );
+        setcookie(self::LANG_COOKIE, $langCode, $this->languageCookieOptions(time() + 30 * DAY_IN_SECONDS));
         // Reflect into $_COOKIE so later code in this request sees the new value.
         $_COOKIE[self::LANG_COOKIE] = $langCode;
+    }
+
+    /**
+     * Expire the preference cookie using the exact same path/domain attributes it
+     * was set with — browsers only match a deletion against an identical cookie.
+     */
+    private function clearLanguageCookie(): void
+    {
+        if (!headers_sent()) {
+            setcookie(self::LANG_COOKIE, '', $this->languageCookieOptions(time() - YEAR_IN_SECONDS));
+        }
+        unset($_COOKIE[self::LANG_COOKIE]);
+    }
+
+    private function languageCookieOptions(int $expires): array
+    {
+        return [
+            'expires' => $expires,
+            'path' => defined('COOKIEPATH') && COOKIEPATH ? COOKIEPATH : '/',
+            'domain' => defined('COOKIE_DOMAIN') && COOKIE_DOMAIN ? COOKIE_DOMAIN : '',
+            'secure' => is_ssl(),
+            'httponly' => false,
+            'samesite' => 'Lax',
+        ];
+    }
+
+    private function isSourceSwitchRequest(): bool
+    {
+        // Navigational opt-out marker, not a state-changing form action — nonce
+        // verification doesn't apply (worst case a crafted link clears a cookie).
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        if (!isset($_GET[self::SWITCH_PARAM])) {
+            return false;
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        return sanitize_key(wp_unslash((string) $_GET[self::SWITCH_PARAM])) === 'source';
+    }
+
+    /**
+     * Redirect to the current URL with the ?universally_switch marker removed,
+     * keeping the rest of the query string byte-for-byte (no re-encoding that
+     * could corrupt percent-encoded UTF-8).
+     */
+    private function redirectToCleanUrl(): void
+    {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- parsed by wp_parse_url; sanitize_text_field would corrupt percent-encoded UTF-8.
+        $requestUri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '/';
+        $parsed = wp_parse_url($requestUri);
+        $path = $parsed['path'] ?? '/';
+
+        $query = '';
+        if (!empty($parsed['query'])) {
+            $pairs = array_filter(explode('&', $parsed['query']), function (string $pair): bool {
+                return $pair !== self::SWITCH_PARAM && strpos($pair, self::SWITCH_PARAM . '=') !== 0;
+            });
+            if (!empty($pairs)) {
+                $query = '?' . implode('&', $pairs);
+            }
+        }
+
+        wp_safe_redirect(esc_url_raw(home_url($path . $query)), 302);
+        exit;
     }
 
     private function getPreferredLanguageFromCookie(): ?string

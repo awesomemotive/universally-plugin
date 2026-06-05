@@ -75,7 +75,14 @@ class UniversallySwitcher extends HTMLElement {
       // data-lang carries the urlPrefix for target languages; an empty value
       // marks the source language so the click handler can clear the cookie.
       const dataLang = lang.isSource ? '' : (lang.urlPrefix || '');
-      return `<li><a href="${lang.url}" hreflang="${hreflang}" lang="${hreflang}" data-lang="${dataLang}">${labelHtml(lang)}</a></li>`;
+      // The source link carries an explicit opt-out marker so the server clears
+      // the stored preference even when the click handler doesn't run (new tab,
+      // prefetch, cookie path/domain mismatch). PHP strips the marker and
+      // redirects to the clean URL.
+      const href = lang.isSource
+        ? `${lang.url}${lang.url.includes('?') ? '&' : '?'}universally_switch=source`
+        : lang.url;
+      return `<li><a href="${href}" hreflang="${hreflang}" lang="${hreflang}" data-lang="${dataLang}">${labelHtml(lang)}</a></li>`;
     }).join('');
 
     this.shadowRoot.innerHTML = `
@@ -199,9 +206,10 @@ class UniversallySwitcher extends HTMLElement {
   }
 
   _persistLanguageChoice(urlPrefix) {
-    // Empty urlPrefix means the source language: clearing the cookie tells the
-    // server "this user explicitly opted out of translation" so it stops
-    // re-prefixing future navigations.
+    // Empty urlPrefix means the source language: clear the cookie for instant
+    // local effect. The authoritative clear happens server-side via the
+    // ?universally_switch=source marker on the source link, which uses the
+    // exact cookie path/domain attributes the cookie was set with.
     const maxAge = urlPrefix ? 60 * 60 * 24 * 30 : 0;
     const value = urlPrefix ? encodeURIComponent(urlPrefix) : '';
     const secure = location.protocol === 'https:' ? ';secure' : '';
