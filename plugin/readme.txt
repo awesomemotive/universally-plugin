@@ -4,7 +4,7 @@ Tags: translate, translation, multilingual, language switcher, multilingual seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,7 +123,7 @@ Paid plans of Universally unlock everything the multilingual web has to offer: m
 
 = Built by the Team Behind WPBeginner, WPForms, and OptinMonster =
 
-Universally is built by Awesome Motive, the team behind WPForms, OptinMonster, AIOSEO (All in One SEO), MonsterInsights, WP Mail SMTP, SeedProd, WPCode, PushEngage, Duplicator, and WPBeginner. We know WordPress, we know SEO, and we know how multilingual sites are supposed to behave. Universally is the translation plugin we wished existed.
+Universally is built by the team behind WPForms, OptinMonster, AIOSEO (All in One SEO), MonsterInsights, WP Mail SMTP, SeedProd, WPCode, PushEngage, Duplicator, and WPBeginner. We know WordPress, we know SEO, and we know how multilingual sites are supposed to behave. Universally is the translation plugin we wished existed.
 
 = Better Than Weglot, WPML, TranslatePress, Polylang & Other Translation Tools =
 
@@ -133,7 +133,7 @@ Universally sits in between — an AI translation plugin built for WordPress, wi
 
 = Branding Guidelines =
 
-Universally is a product of Awesome Motive. When writing about our WordPress translation plugin, please use the correct branding:
+When writing about our WordPress translation plugin, please use the correct branding:
 
 * Universally (correct)
 * universally (incorrect)
@@ -244,6 +244,9 @@ You can reach our support team through the [Universally dashboard](https://app.u
 7. Language switcher styling — Customize trigger and dropdown colors, borders, border radius, and flag style.
 
 == Changelog ==
+
+= 1.0.5 =
+* Fix: selecting the source language in the switcher now reliably restores the original language. The stored preference is cleared server-side, so switching back works in new tabs, on subdirectory and multisite installs, and with WordPress 6.8+ speculative loading.
 
 = 1.0.4 =
 * Fix: posting a comment from a translated page no longer drops the visitor back into the source language — the post-submit redirect stays on the translated URL.
