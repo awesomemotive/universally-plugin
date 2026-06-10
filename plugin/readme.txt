@@ -245,6 +245,14 @@ You can reach our support team through the [Universally dashboard](https://app.u
 
 == Changelog ==
 
+= 1.0.6 =
+* New: Connect your site to Universally in one click. A guided setup saves your API key automatically — no manual copy-paste.
+* New: A connection panel in Settings shows your connection status and lets you manage it.
+* New: Settings are organized into tabs — General, Language Switcher, Styling, and Preferences — each reachable directly from the WordPress admin sidebar.
+* New: A Preferences tab with an optional anonymous usage-data setting to help improve Universally. You can opt out at any time.
+* Improvement: A clearer languages list — each language shows its full, clickable URL with a copy button and an at-a-glance status.
+* Fix: the language switcher's border radius now applies correctly after saving your styling options.
+
 = 1.0.5 =
 * Fix: selecting the source language in the switcher now reliably restores the original language. The stored preference is cleared server-side, so switching back works in new tabs, on subdirectory and multisite installs, and with WordPress 6.8+ speculative loading.
 
@@ -266,6 +274,9 @@ You can reach our support team through the [Universally dashboard](https://app.u
 * Initial release.
 
 == Upgrade Notice ==
+
+= 1.0.6 =
+Adds guided hosted onboarding (one-click connect), a connection-status panel with a safe disconnect step, tabbed settings with matching sidebar navigation, a clearer languages list, and a fix for the switcher's border radius.
 
 = 1.0.4 =
 Keeps the visitor on the translated language after submitting a comment, redirects excluded pages to their canonical URL, and remembers the chosen language across navigations.
