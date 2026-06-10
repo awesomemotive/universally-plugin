@@ -53,6 +53,12 @@ function universally_activation_notice_should_show(): bool
         return false;
     }
 
+    // Don't show the "not connected" notice on the connect/callback page —
+    // the user is in the middle of connecting there.
+    if ($screen && strpos((string) $screen->id, 'universally-connect') !== false) {
+        return false;
+    }
+
     if (get_transient('universally_notice_dismissed')) {
         return false;
     }

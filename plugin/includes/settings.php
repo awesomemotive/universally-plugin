@@ -4,6 +4,33 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Only do per-page work (which may hit the API or mint a nonce) when actually
+// rendering the settings admin page. This file is required on every `init`
+// (front-end, admin, and REST), so doing it unconditionally would churn the
+// connect-state nonce and fetch site config on every request.
+$universally_connect_url = '';
+$universally_project_id  = '';
+if (
+    is_admin()
+    && isset($_GET['page']) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    && sanitize_key(wp_unslash($_GET['page'])) === UNIVERSALLY_SETTINGS_KEY // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+) {
+    if (class_exists(\Universally\Onboarding::class)) {
+        $universally_connect_url = (new \Universally\Onboarding())->buildConnectUrl();
+    }
+    // Project id lets the Languages table deep-link into the dashboard
+    // ({app}/projects/{id}/languages). Empty when not connected.
+    $universally_project_id = universally_get_site_id();
+}
+
+// "Dashboard" header link: deep-link straight to the connected project when we
+// know its id, otherwise fall back to the app root (same URL the function
+// resolves, honoring the UNIVERSALLY_APP_URL wp-config override).
+$universally_dashboard_url = universally_get_app_url();
+if ($universally_project_id !== '') {
+    $universally_dashboard_url = rtrim($universally_dashboard_url, '/') . '/projects/' . $universally_project_id;
+}
+
 return [
     'id' => 'universally_settings',
     'title' => 'Universally',
@@ -12,7 +39,8 @@ return [
         [
             'icon' => 'dashicons-admin-site',
             'label' => __('Dashboard', 'universally-language-translation-multilingual-tool'),
-            'href' => 'https://app.universally.com/',
+            // Deep-links to the connected project when known, else the app root.
+            'href' => $universally_dashboard_url,
         ],
         [
             'icon' => 'dashicons-book',
@@ -24,6 +52,9 @@ return [
         'location' => 'toplevel',
         'icon' => 'dashicons-admin-generic',
         'iconPath' => '/assets/menu-icon.svg',
+        // Mirror the panel's tabs as sidebar submenu items (General, Language
+        // Switcher, Styling, Settings).
+        'submenuTabs' => true,
     ],
     'schema' => [
         [
@@ -41,11 +72,26 @@ return [
             'id' => 'api_key',
             'type' => 'api-key',
             'endpoint' => 'universally/v1/validate-api-key',
-            'label' => __('API Key', 'universally-language-translation-multilingual-tool'),
-            'description' => __('Enter your API key to receive updates and support. The API key can be found in the app under the [Api Settings](https://app.universally.com/) section.', 'universally-language-translation-multilingual-tool'),
+            'label' => __('Connection', 'universally-language-translation-multilingual-tool'),
             'placeholder' => __('64-character API key', 'universally-language-translation-multilingual-tool'),
             'validate' => 'regex:/^[a-fA-F0-9]{64}$/',
             'sanitize' => 'trim|text_field',
+            'connect' => true,
+            'connectUrl' => $universally_connect_url,
+            'connectLabel' => __('Connect to Universally', 'universally-language-translation-multilingual-tool'),
+            // Shown only in the disconnected state (the connected state is a
+            // status block, so a static "connect…" description would be wrong).
+            'connectDescription' => __('Connect your site to Universally to start translating. We’ll guide you through account setup, your plan, and languages — then bring you right back here.', 'universally-language-translation-multilingual-tool'),
+            'connectedLabel' => __('Your site is connected to Universally', 'universally-language-translation-multilingual-tool'),
+            'manualLabel' => __('Already have an API key? Enter it manually', 'universally-language-translation-multilingual-tool'),
+            'disconnectLabel' => __('Disconnect', 'universally-language-translation-multilingual-tool'),
+            'disconnectConfirmTitle' => __('Disconnect from Universally', 'universally-language-translation-multilingual-tool'),
+            'disconnectConfirmLabel' => __('Disconnect this site from Universally? Translation will stop until you reconnect.', 'universally-language-translation-multilingual-tool'),
+            'disconnectConfirmButton' => __('Yes, disconnect', 'universally-language-translation-multilingual-tool'),
+            'disconnectCancelLabel' => __('Cancel', 'universally-language-translation-multilingual-tool'),
+            'disconnectedLabel' => __('Universally disconnected', 'universally-language-translation-multilingual-tool'),
+            'statusLabel' => __('API status', 'universally-language-translation-multilingual-tool'),
+            'statusValue' => __('Operational', 'universally-language-translation-multilingual-tool'),
         ],
         [
             'type' => 'section',
@@ -58,6 +104,11 @@ return [
             'type' => 'languages-table',
             'label' => '',
             'endpoint' => 'universally/v1/languages',
+            // "Add Languages" link target — resolves the wp-config override.
+            'appUrl' => universally_get_app_url(),
+            // When known, deep-links to this project's language panel:
+            // {appUrl}/projects/{projectId}/languages.
+            'projectId' => $universally_project_id,
         ],
         [
             'type' => 'tab',
@@ -263,6 +314,25 @@ return [
             'suffix' => 'px',
             'default' => 6,
             'sanitize' => 'trim|text_field',
+        ],
+        [
+            'type' => 'tab',
+            'id' => 'settings_tab',
+            'label' => __('Preferences', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'type' => 'section',
+            'id' => 'privacy_section',
+            'label' => __('Privacy', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'id' => 'usage_tracking',
+            'type' => 'toggle',
+            'label' => __('Anonymous Usage Data', 'universally-language-translation-multilingual-tool'),
+            'inlineLabel' => __('Share anonymous usage data to help make Universally better for everyone', 'universally-language-translation-multilingual-tool'),
+            'description' => __('You can opt out at any time. [Learn more about anonymous usage tracking.](https://universally.com/docs/usage-tracking-in-wordpress/)', 'universally-language-translation-multilingual-tool'),
+            'default' => true,
+            'sanitize' => 'bool',
         ],
     ],
 ];

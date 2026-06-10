@@ -197,15 +197,35 @@ class LanguageSwitcher
             'dropdown_radius'      => '--universally-dropdown-radius',
         ];
 
+        // Defaults applied when a setting isn't stored, so the switcher matches the
+        // admin-panel preview even before anything is saved. Mirrors the schema
+        // defaults in settings.php (the range fields default to 6). Colors have no
+        // default — they stay unset and the stylesheet's var() fallback applies.
+        $defaults = [
+            'trigger_radius'  => '6',
+            'dropdown_radius' => '6',
+        ];
+
+        // Range fields store a bare number ("6"); these CSS vars feed border-radius,
+        // which needs a length unit. Append px to unitless numeric values.
+        $pixelKeys = ['trigger_radius', 'dropdown_radius'];
+
         // Merge: style overrides take priority over admin panel defaults
         $merged = array_merge($stored, $styleOverrides);
 
         $vars = [];
         foreach ($map as $key => $varName) {
-            $value = trim($merged[$key] ?? '');
-            if ($value !== '') {
-                $vars[] = $varName . ':' . $value;
+            $value = trim((string) ($merged[$key] ?? ''));
+            if ($value === '' && isset($defaults[$key])) {
+                $value = $defaults[$key];
             }
+            if ($value === '') {
+                continue;
+            }
+            if (in_array($key, $pixelKeys, true) && is_numeric($value)) {
+                $value .= 'px';
+            }
+            $vars[] = $varName . ':' . $value;
         }
 
         return implode(';', $vars);

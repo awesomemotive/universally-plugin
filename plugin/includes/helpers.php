@@ -24,6 +24,20 @@ function universally_get_api_key(): string
 }
 
 /**
+ * Get the Universally app base URL (no trailing slash).
+ *
+ * Defaults to the production app, overridable in wp-config.php for
+ * local/staging via `define('UNIVERSALLY_APP_URL', 'http://localhost:3000');`.
+ * Single source of truth — every "Dashboard"/app link should resolve through
+ * this so the override only lives in one place.
+ */
+function universally_get_app_url(): string
+{
+    $url = defined('UNIVERSALLY_APP_URL') ? UNIVERSALLY_APP_URL : 'https://app.universally.com';
+    return rtrim($url, '/');
+}
+
+/**
  * Get the public API key (first 32 chars).
  */
 function universally_get_public_api_key(): string
@@ -167,7 +181,7 @@ function universally_fetch_site_config(): array
  * @param bool $forceRefresh Force cache refresh
  * @return array
  */
-function universally_get_exclude_pages(bool $forceRefresh = false): array
+function universally_get_site_config(bool $forceRefresh = false): array
 {
     $cacheKey = 'universally_site_config';
     $config = get_transient($cacheKey);
@@ -177,7 +191,30 @@ function universally_get_exclude_pages(bool $forceRefresh = false): array
         set_transient($cacheKey, $config, 15 * MINUTE_IN_SECONDS);
     }
 
-    return $config['excludePages'] ?? [];
+    return is_array($config) ? $config : [];
+}
+
+function universally_get_exclude_pages(bool $forceRefresh = false): array
+{
+    return universally_get_site_config($forceRefresh)['excludePages'] ?? [];
+}
+
+/**
+ * Get the connected project (site) id, used to deep-link into the dashboard
+ * (e.g. {app}/projects/{id}/languages). Empty string if not connected or the
+ * API doesn't report one yet. Sourced from the cached site config.
+ */
+function universally_get_site_id(): string
+{
+    $config = universally_get_site_config();
+    // Self-heal: a site-config cached before the API exposed `siteId` won't have
+    // it. Force one refresh (only while connected) so the dashboard deep-links
+    // work immediately instead of after the 15-minute cache expires.
+    if (!isset($config['siteId']) && universally_get_api_key() !== '') {
+        $config = universally_get_site_config(true);
+    }
+    $id = $config['siteId'] ?? '';
+    return is_string($id) ? $id : '';
 }
 
 /**

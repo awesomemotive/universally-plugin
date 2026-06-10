@@ -18,6 +18,7 @@ use Universally\ActivationToken;
 use Universally\AdminBar;
 use Universally\LanguageSwitcher;
 use Universally\Migration;
+use Universally\Onboarding;
 use Universally\RestApi;
 use Universally\UnifiedBuffer;
 
@@ -77,3 +78,4 @@ new LanguageSwitcher();
 new AdminBar();
 new RestApi();
 new ActivationToken();
+new Onboarding();

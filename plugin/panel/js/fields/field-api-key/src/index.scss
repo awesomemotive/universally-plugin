@@ -51,4 +51,144 @@
     margin-right: 4px;
     font-weight: 700;
   }
+
+  // Notice / alert box (connect mode feedback, e.g. after disconnecting).
+  &__notice {
+    margin-top: 14px;
+    padding: 10px 14px;
+    border-radius: 4px;
+    border: 1px solid;
+    font-size: 13px;
+    line-height: 1.5;
+
+    &--info {
+      border-color: #dba617;
+      background: #fcf9e8;
+      color: #1e1e1e;
+    }
+
+    &--success {
+      border-color: #00a32a;
+      background: #edfaef;
+      color: #1e1e1e;
+    }
+
+    &--error {
+      border-color: #d63638;
+      background: #fcf0f1;
+      color: #b32d2e;
+    }
+  }
+
+  /* ---- Connect mode ---- */
+
+  &__checking {
+    font-size: 13px;
+    color: #646970;
+  }
+
+  &__connect-desc {
+    margin: 0 0 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #646970;
+    max-width: 60ch;
+  }
+
+  &__connect-btn {
+    display: inline-block;
+    padding: 9px 20px;
+    border-radius: 6px;
+    background: var(--wp-panel-primary, #650cdf);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover,
+    &:focus {
+      background: var(--wp-panel-primary-hover, #5409b8);
+      color: #fff;
+    }
+  }
+
+  &__manual-toggle {
+    display: inline-block;
+    margin-left: 16px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--wp-panel-primary, #650cdf);
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  &__manual {
+    margin-top: 12px;
+  }
+
+  &--status {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__connected {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  &__connected-badge {
+    display: inline-flex;
+    align-items: center;
+    color: #00a32a;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #50575e;
+  }
+
+  &__status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #00a32a;
+    box-shadow: 0 0 0 3px rgba(0, 163, 42, 0.15);
+    flex-shrink: 0;
+  }
+
+  &__status-value {
+    color: #00a32a;
+    font-weight: 600;
+  }
+
+  &__disconnect {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #646970;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+
+    &:hover:not(:disabled) {
+      color: #d63638;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
 }

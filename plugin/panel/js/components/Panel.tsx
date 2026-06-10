@@ -2,6 +2,7 @@ import type { PanelConfig, ParsedSchema, OnboardingData } from '../types';
 import { usePanelState } from '../hooks/usePanelState';
 import { useScrollThreshold } from '../hooks/useScrollThreshold';
 import { useHashTab } from '../hooks/useHashTab';
+import { useSidebarTabSync } from '../hooks/useSidebarTabSync';
 import { useTabContent } from '../hooks/useTabContent';
 import { useTabErrors } from '../hooks/useTabErrors';
 import { useUnsavedChangesWarning } from '../hooks/useUnsavedChangesWarning';
@@ -23,6 +24,7 @@ export function Panel({ config, parsed, onboarding }: PanelProps) {
   const { state } = usePanelState();
   const { tabIds, tabs, fieldsByTab, sectionsByTab } = useTabContent(parsed);
   const { activeTab, setActiveTab } = useHashTab(tabIds);
+  useSidebarTabSync(config.id, activeTab, tabIds);
   const isScrolled = useScrollThreshold(60);
 
   // Warn user when leaving with unsaved changes
