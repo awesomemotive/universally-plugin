@@ -245,6 +245,10 @@ final class Panel
         }
 
         if (!empty($entries)) {
+            // Intentionally replacing this menu's submenu with our per-tab links.
+            // Scoped to our own slug; this is the supported way to add hash-anchored
+            // submenu items, which add_submenu_page() can't express.
+            // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
             $submenu[$this->id] = $entries;
         }
     }
