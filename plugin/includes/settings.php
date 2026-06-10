@@ -23,6 +23,14 @@ if (
     $universally_project_id = universally_get_site_id();
 }
 
+// "Dashboard" header link: deep-link straight to the connected project when we
+// know its id, otherwise fall back to the app root (same URL the function
+// resolves, honoring the UNIVERSALLY_APP_URL wp-config override).
+$universally_dashboard_url = universally_get_app_url();
+if ($universally_project_id !== '') {
+    $universally_dashboard_url = rtrim($universally_dashboard_url, '/') . '/projects/' . $universally_project_id;
+}
+
 return [
     'id' => 'universally_settings',
     'title' => 'Universally',
@@ -31,9 +39,8 @@ return [
         [
             'icon' => 'dashicons-admin-site',
             'label' => __('Dashboard', 'universally-language-translation-multilingual-tool'),
-            // Resolves through universally_get_app_url() so the wp-config override
-            // (UNIVERSALLY_APP_URL) lives in exactly one place.
-            'href' => universally_get_app_url(),
+            // Deep-links to the connected project when known, else the app root.
+            'href' => $universally_dashboard_url,
         ],
         [
             'icon' => 'dashicons-book',
