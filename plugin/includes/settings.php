@@ -52,6 +52,9 @@ return [
         'location' => 'toplevel',
         'icon' => 'dashicons-admin-generic',
         'iconPath' => '/assets/menu-icon.svg',
+        // Mirror the panel's tabs as sidebar submenu items (General, Language
+        // Switcher, Styling, Settings).
+        'submenuTabs' => true,
     ],
     'schema' => [
         [
@@ -315,7 +318,7 @@ return [
         [
             'type' => 'tab',
             'id' => 'settings_tab',
-            'label' => __('Settings', 'universally-language-translation-multilingual-tool'),
+            'label' => __('Preferences', 'universally-language-translation-multilingual-tool'),
         ],
         [
             'type' => 'section',

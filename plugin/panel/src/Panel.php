@@ -184,6 +184,11 @@ final class Panel
                 $this->getMenuIcon($menu),
                 $menu['position'] ?? null
             );
+
+            // Optionally mirror the panel's tabs as sidebar submenu items.
+            if (!empty($menu['submenuTabs'])) {
+                $this->registerTabSubmenus($capability);
+            }
         } else {
             // Map legacy shortcuts to actual WordPress slugs
             $locationMap = [
@@ -200,6 +205,47 @@ final class Panel
                 $this->id,
                 [$this, 'render']
             );
+        }
+    }
+
+    /**
+     * Mirror the panel's tabs as sidebar submenu items.
+     *
+     * Each item links to the panel page with the tab id as a URL hash; the React
+     * panel (useHashTab) opens that tab on load and reacts to in-page hash changes.
+     * The first accessible tab uses the bare page slug (no hash) so WordPress
+     * highlights it as the current menu item. Replaces the parent entry WordPress
+     * auto-adds, so the slug list reads General / Language Switcher / Styling / …
+     */
+    private function registerTabSubmenus(string $capability): void
+    {
+        global $submenu;
+
+        if (empty($this->tabs)) {
+            return;
+        }
+
+        $entries = [];
+        $first = true;
+        foreach ($this->tabs as $tabId => $tab) {
+            $cap = $tab['capability'] ?? $capability;
+            if (!current_user_can($cap)) {
+                continue;
+            }
+
+            // WordPress renders index 2 verbatim as the href when it isn't a
+            // registered page hook, which lets us carry the #tab anchor through.
+            $slug = $first ? $this->id : 'admin.php?page=' . $this->id . '#' . $tabId;
+            $label = $tab['label'] ?? $tabId;
+            // Index 3 (page title) is required: WP core reads it (e.g.
+            // get_admin_page_title()); omitting it triggers "Undefined array key 3"
+            // and a downstream strip_tags(null) deprecation.
+            $entries[] = [$label, $cap, $slug, $label];
+            $first = false;
+        }
+
+        if (!empty($entries)) {
+            $submenu[$this->id] = $entries;
         }
     }
 
