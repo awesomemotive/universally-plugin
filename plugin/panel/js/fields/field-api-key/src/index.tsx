@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Modal, Button } from '@wordpress/components';
 import { useFieldApi } from './useFieldApi';
 
 interface FieldConfig {
@@ -14,6 +15,11 @@ interface FieldConfig {
   connectedLabel?: string;
   manualLabel?: string;
   disconnectLabel?: string;
+  /** Confirmation popup shown before disconnecting (connect mode). */
+  disconnectConfirmTitle?: string;
+  disconnectConfirmLabel?: string;
+  disconnectConfirmButton?: string;
+  disconnectCancelLabel?: string;
   /** Notice shown after disconnecting (connect mode). */
   disconnectedLabel?: string;
   /** Connected-state "API status" row labels. */
@@ -52,6 +58,8 @@ export function ApiKeyField({ fieldId, config }: Props) {
   );
   // Connect mode: the raw key input is hidden behind a "enter it manually" fallback.
   const [showManual, setShowManual] = useState(false);
+  // Connect mode: require a confirm click before disconnecting (avoids accidental clicks).
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
   // Have we resolved the initial status yet? Avoids a Connect→Connected flash.
   const [resolved, setResolved] = useState(cache.has(config.endpoint));
 
@@ -93,6 +101,7 @@ export function ApiKeyField({ fieldId, config }: Props) {
       setInputValue('');
       setValid(false);
       setShowManual(false);
+      setConfirmingDisconnect(false);
       // In connect mode show a branded confirmation rather than the raw API message.
       setMessage(config.connect ? (config.disconnectedLabel ?? 'Universally disconnected') : res.message);
       setMessageType('info');
@@ -176,12 +185,39 @@ export function ApiKeyField({ fieldId, config }: Props) {
             <button
               type="button"
               className="wp-panel-api-key__disconnect"
-              onClick={handleDeactivate}
+              onClick={() => setConfirmingDisconnect(true)}
               disabled={loading}
             >
               {loading ? 'Working...' : (config.disconnectLabel ?? 'Disconnect')}
             </button>
           </div>
+
+          {confirmingDisconnect && (
+            <Modal
+              title={config.disconnectConfirmTitle ?? 'Disconnect from Universally'}
+              onRequestClose={() => {
+                if (!loading) setConfirmingDisconnect(false);
+              }}
+              isDismissible={!loading}
+              shouldCloseOnClickOutside={!loading}
+              shouldCloseOnEsc={!loading}
+              size="small"
+              className="wp-panel-api-key__disconnect-modal"
+            >
+              <p style={{ marginTop: 0 }}>
+                {config.disconnectConfirmLabel ??
+                  'Disconnect this site from Universally? Translation will stop until you reconnect.'}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                <Button variant="tertiary" onClick={() => setConfirmingDisconnect(false)} disabled={loading}>
+                  {config.disconnectCancelLabel ?? 'Cancel'}
+                </Button>
+                <Button variant="primary" isDestructive onClick={handleDeactivate} disabled={loading}>
+                  {loading ? 'Disconnecting…' : (config.disconnectConfirmButton ?? 'Yes, disconnect')}
+                </Button>
+              </div>
+            </Modal>
+          )}
           <div className="wp-panel-api-key__status">
             <span className="wp-panel-api-key__status-dot" aria-hidden="true" />
             <span className="wp-panel-api-key__status-label">
