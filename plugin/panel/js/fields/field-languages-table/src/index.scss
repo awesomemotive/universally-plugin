@@ -275,27 +275,60 @@
     opacity: 0.5;
   }
 
+  // Count summary above the table.
+  &__summary {
+    margin: 0;
+    padding: 4px var(--wp-panel-spacing, 16px) 12px;
+    font-size: 13px;
+    color: #50575e;
+
+    strong {
+      color: #1e1e1e;
+    }
+  }
+
   &__lang-cell {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     color: #1e1e1e;
-    font-weight: 500;
   }
 
   &__flag {
-    width: 22px;
-    height: 16px;
-    border-radius: 2px;
+    width: 24px;
+    height: 18px;
+    border-radius: 3px;
     object-fit: cover;
     flex-shrink: 0;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
   }
 
+  &__lang-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   &__name {
     font-size: 14px;
+    font-weight: 600;
     color: #1e1e1e;
     text-decoration: none;
+  }
+
+  // Locale code (e.g. en-us) folded under the name — replaces the Region column.
+  &__locale {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: #8c8f94;
+    letter-spacing: 0.02em;
   }
 
   &__is-source {
@@ -306,21 +339,61 @@
     border-radius: 5px;
     color: #0095a3;
     background: #edf8fa;
-
   }
 
-  &__code {
+  &__url-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__url {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
-    background: #f0f0f1;
     color: #3c434a;
+    text-decoration: none;
+    background: #f0f0f1;
     padding: 3px 8px;
     border-radius: 4px;
     letter-spacing: 0.01em;
+    transition: color 0.12s ease, background 0.12s ease;
+
+    &:hover {
+      color: var(--wp-panel-primary, #650cdf);
+      background: #ece8f7;
+    }
+  }
+
+  &__copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: #757575;
+    cursor: pointer;
+    transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      color: #1e1e1e;
+      background: #f6f7f7;
+      border-color: #e0e0e0;
+    }
   }
 
   &__status {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 12px;
     font-weight: 500;
     padding: 3px 10px;
@@ -335,5 +408,13 @@
       color: #996800;
       background: #fcf9e8;
     }
+  }
+
+  &__status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
   }
 }

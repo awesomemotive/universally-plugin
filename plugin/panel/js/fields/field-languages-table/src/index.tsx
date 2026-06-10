@@ -54,10 +54,31 @@ const SUGGESTIONS: Suggestion[] = [
     {lang: 'de', name: 'German', flag: '🇩🇪', speakers: '135M speakers', tag: 'High Purchasing Power', tone: 'rose'},
 ];
 
+// Build a language's live URL from its prefix. Source (empty prefix) -> site root.
+// `display` drops the scheme for a compact, readable address; `full` is what we
+// link to and copy.
+function buildLangUrl(urlPrefix: string): {full: string; display: string} {
+    const origin = window.location.origin;
+    const path = urlPrefix ? `/${urlPrefix}/` : '/';
+    return {full: origin + path, display: origin.replace(/^https?:\/\//, '') + path};
+}
+
 export function LanguagesTableField({fieldId, config}: Props) {
     const cached = cache.get(config.endpoint);
     const [data, setData] = useState<LanguagesResponse | null>(cached ?? null);
+    // Which row's URL was just copied — drives the transient "copied" checkmark.
+    const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const {loading, error, request} = useFieldApi<LanguagesResponse>(config.endpoint);
+
+    const copyUrl = async (key: string, url: string) => {
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopiedKey(key);
+            window.setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+        } catch {
+            // Clipboard blocked (insecure context / denied) — no-op; the link is still clickable.
+        }
+    };
 
     // Languages are managed in the app dashboard. When the connected project id
     // is known, deep-link straight to its language panel; otherwise fall back to
@@ -208,42 +229,87 @@ export function LanguagesTableField({fieldId, config}: Props) {
         );
     }
 
+    const activeCount = data.languages.filter((l) => !l.isDisabled).length;
+
     return (
         <div className="wp-panel-languages-table" id={fieldId}>
             {actions}
+            <p className="wp-panel-languages-table__summary">
+                Live in <strong>{activeCount}</strong> {activeCount === 1 ? 'language' : 'languages'}
+            </p>
             <table className="wp-panel-languages-table__table">
                 <thead>
                 <tr>
                     <th>Language</th>
-                    <th>Region</th>
-                    <th>URL Prefix</th>
+                    <th>URL</th>
                     <th>Status</th>
                 </tr>
                 </thead>
                 <tbody>
-                {data.languages.map((lang) => (
-                    <tr key={lang.region} className={lang.isDisabled ? 'wp-panel-languages-table__row--disabled' : ''}>
-                        <td className="wp-panel-languages-table__lang-cell">
-                            {lang.flagUrl && (
-                                <img
-                                    src={lang.flagUrl}
-                                    alt=""
-                                    className="wp-panel-languages-table__flag"
-                                />
-                            )}
-                            <a href={`/${lang.urlPrefix}/`} target="_blank" className="wp-panel-languages-table__name">{lang.originalName || lang.variant}</a>
-                            {lang.isSource && <span className="wp-panel-languages-table__is-source">Source</span>}
-                        </td>
-                        <td>{lang.region}</td>
-                        <td><code className="wp-panel-languages-table__code">/{lang.urlPrefix}</code></td>
-                        <td>
-                <span
-                    className={`wp-panel-languages-table__status ${lang.isDisabled ? 'wp-panel-languages-table__status--disabled' : 'wp-panel-languages-table__status--active'}`}>
-                  {lang.isDisabled ? 'Disabled' : 'Active'}
-                </span>
-                        </td>
-                    </tr>
-                ))}
+                {data.languages.map((lang) => {
+                    const rowKey = lang.region || lang.urlPrefix || lang.lang;
+                    const url = buildLangUrl(lang.urlPrefix);
+                    const copied = copiedKey === rowKey;
+                    return (
+                        <tr key={rowKey} className={lang.isDisabled ? 'wp-panel-languages-table__row--disabled' : ''}>
+                            <td>
+                                <div className="wp-panel-languages-table__lang-cell">
+                                    {lang.flagUrl && (
+                                        <img
+                                            src={lang.flagUrl}
+                                            alt=""
+                                            className="wp-panel-languages-table__flag"
+                                        />
+                                    )}
+                                    <span className="wp-panel-languages-table__lang-meta">
+                                        <span className="wp-panel-languages-table__name-row">
+                                            <span className="wp-panel-languages-table__name">{lang.originalName || lang.variant}</span>
+                                            {lang.isSource && <span className="wp-panel-languages-table__is-source">Source</span>}
+                                        </span>
+                                        {lang.region && <span className="wp-panel-languages-table__locale">{lang.region}</span>}
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                <div className="wp-panel-languages-table__url-cell">
+                                    <a
+                                        className="wp-panel-languages-table__url"
+                                        href={url.full}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        {url.display}
+                                    </a>
+                                    <button
+                                        type="button"
+                                        className="wp-panel-languages-table__copy"
+                                        onClick={() => copyUrl(rowKey, url.full)}
+                                        aria-label={copied ? 'Copied' : 'Copy URL'}
+                                        title={copied ? 'Copied!' : 'Copy URL'}
+                                    >
+                                        {copied ? (
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                        ) : (
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+                            </td>
+                            <td>
+                                <span
+                                    className={`wp-panel-languages-table__status ${lang.isDisabled ? 'wp-panel-languages-table__status--disabled' : 'wp-panel-languages-table__status--active'}`}>
+                                    <span className="wp-panel-languages-table__status-dot" aria-hidden="true"/>
+                                    {lang.isDisabled ? 'Disabled' : 'Active'}
+                                </span>
+                            </td>
+                        </tr>
+                    );
+                })}
                 </tbody>
             </table>
             {addLanguageCta}
