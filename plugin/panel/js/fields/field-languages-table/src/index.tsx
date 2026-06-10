@@ -1,4 +1,6 @@
 import {useState, useEffect} from 'react';
+import apiFetch from '@wordpress/api-fetch';
+import {Modal} from '@wordpress/components';
 import {useFieldApi} from './useFieldApi';
 
 interface FieldConfig {
@@ -37,22 +39,56 @@ interface LanguagesResponse {
 
 const cache = new Map<string, LanguagesResponse>();
 
-interface Suggestion {
-    lang: string;
+interface AddLanguageResponse {
+    success: boolean;
+    code?: string;
+    message?: string;
+    languages?: LanguageItem[];
+}
+
+interface PopularLanguage {
+    /** Backend variant code (lowercase) passed to POST /connect/languages. */
+    variant: string;
     name: string;
-    flag: string;
-    speakers: string;
+    /** ISO country code for the flag (the language's default region). */
+    cc: string;
+    /** Native-speaker count, sourced from packages/languages (LANGS nativeSpeakers). */
+    speakers: number;
+    /** Market badge — mirrors the hosted onboarding's framing. */
     tag: string;
     tone: 'rose' | 'blue';
 }
 
-// Curated high-reach languages surfaced as an upsell to add more. Numbers are
-// approximate total-speaker counts; tags mirror the hosted onboarding's framing.
-const SUGGESTIONS: Suggestion[] = [
-    {lang: 'es', name: 'Spanish', flag: '🇪🇸', speakers: '559M speakers', tag: 'High Purchasing Power', tone: 'rose'},
-    {lang: 'fr', name: 'French', flag: '🇫🇷', speakers: '310M speakers', tag: 'Fast Growing Market', tone: 'blue'},
-    {lang: 'de', name: 'German', flag: '🇩🇪', speakers: '135M speakers', tag: 'High Purchasing Power', tone: 'rose'},
+// Flag SVGs served from the Universally CDN, e.g. .../flags/es.svg.
+const FLAG_CDN = 'https://cdn.universally.com/flags';
+
+// At most this many suggestions are shown at once; adding one reveals the next.
+const MAX_SUGGESTIONS = 4;
+
+// Popular languages offered for one-click add. Variant codes must match the
+// backend catalog (packages/languages) exactly, or the add is rejected. Speaker
+// counts mirror that package's `nativeSpeakers`; tags/tones mirror the hosted
+// onboarding's framing; `cc` is the default region's flag code.
+const POPULAR_LANGUAGES: PopularLanguage[] = [
+    {variant: 'es', name: 'Spanish', cc: 'es', speakers: 485_000_000, tag: 'High Purchasing Power', tone: 'rose'},
+    {variant: 'zh-hans', name: 'Chinese (Simplified)', cc: 'cn', speakers: 920_000_000, tag: 'Fast Growing Market', tone: 'blue'},
+    {variant: 'ar', name: 'Arabic', cc: 'sa', speakers: 310_000_000, tag: 'Fast Growing Market', tone: 'blue'},
+    {variant: 'pt-br', name: 'Portuguese (Brazil)', cc: 'br', speakers: 260_000_000, tag: 'Fast Growing Market', tone: 'blue'},
+    {variant: 'ja', name: 'Japanese', cc: 'jp', speakers: 125_000_000, tag: 'High Purchasing Power', tone: 'rose'},
+    {variant: 'de', name: 'German', cc: 'de', speakers: 95_000_000, tag: 'Fast Growing Market', tone: 'blue'},
+    {variant: 'fr', name: 'French', cc: 'fr', speakers: 80_000_000, tag: 'High Purchasing Power', tone: 'rose'},
+    {variant: 'it', name: 'Italian', cc: 'it', speakers: 67_000_000, tag: 'High Purchasing Power', tone: 'rose'},
+    {variant: 'nl', name: 'Dutch', cc: 'nl', speakers: 25_000_000, tag: 'High Purchasing Power', tone: 'rose'},
 ];
+
+// User count spelled out, e.g. 485000000 -> "485 Million Users", 1.2e9 -> "1.2 Billion Users".
+function formatUsers(n: number): string {
+    if (n >= 1_000_000_000) {
+        const b = (n / 1_000_000_000).toFixed(2).replace(/\.?0+$/, '');
+        return `${b} Billion Users`;
+    }
+    return `${Math.round(n / 1_000_000)} Million Users`;
+}
 
 // Build a language's live URL from its prefix. Source (empty prefix) -> site root.
 // `display` drops the scheme for a compact, readable address; `full` is what we
@@ -68,7 +104,40 @@ export function LanguagesTableField({fieldId, config}: Props) {
     const [data, setData] = useState<LanguagesResponse | null>(cached ?? null);
     // Which row's URL was just copied — drives the transient "copied" checkmark.
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
+    // Add-language state: which variant is in flight, an inline error, and the
+    // plan-limit upsell modal.
+    const [addingVariant, setAddingVariant] = useState<string | null>(null);
+    const [addError, setAddError] = useState<string | null>(null);
+    const [planLimitOpen, setPlanLimitOpen] = useState(false);
     const {loading, error, request} = useFieldApi<LanguagesResponse>(config.endpoint);
+
+    const addLanguage = async (variant: string) => {
+        setAddingVariant(variant);
+        setAddError(null);
+        try {
+            const res = await apiFetch<AddLanguageResponse>({
+                path: config.endpoint,
+                method: 'POST',
+                data: {variant},
+            });
+            if (res?.success && res.languages) {
+                const next: LanguagesResponse = {
+                    sourceLanguage: data?.sourceLanguage ?? '',
+                    languages: res.languages,
+                };
+                cache.set(config.endpoint, next);
+                setData(next);
+            } else if (res?.code === 'PLAN_LIMIT_REACHED') {
+                setPlanLimitOpen(true);
+            } else {
+                setAddError(res?.message || 'Could not add the language. Please try again.');
+            }
+        } catch (e) {
+            setAddError(e instanceof Error ? e.message : 'Could not add the language. Please try again.');
+        } finally {
+            setAddingVariant(null);
+        }
+    };
 
     const copyUrl = async (key: string, url: string) => {
         try {
@@ -87,6 +156,8 @@ export function LanguagesTableField({fieldId, config}: Props) {
     const dashboardUrl = config.projectId
         ? `${appUrl}/projects/${config.projectId}/languages`
         : appUrl;
+    // Manage-plan page — where the app's own upgrade/upsell CTAs point.
+    const upgradeUrl = `${appUrl.replace(/\/$/, '')}/billing/manage`;
 
     const refresh = async () => {
         cache.delete(config.endpoint);
@@ -140,58 +211,157 @@ export function LanguagesTableField({fieldId, config}: Props) {
     );
 
     // Upsell CTA shown under the table (and in the empty state): frames the reach
-    // opportunity and surfaces a few high-value languages to add, each linking to
-    // the dashboard's language panel. Already-added languages are filtered out.
-    const existingLangs = new Set((data?.languages ?? []).map((l) => l.lang).filter(Boolean));
-    const suggestions = SUGGESTIONS.filter((s) => !existingLangs.has(s.lang));
+    // opportunity and offers one-click add for popular languages. Already-added
+    // languages are filtered out (matched by variant or base lang code).
+    const existing = new Set<string>();
+    (data?.languages ?? []).forEach((l) => {
+        if (l.variant) existing.add(l.variant);
+        if (l.lang) existing.add(l.lang);
+    });
+    // Show at most MAX_SUGGESTIONS at a time; adding one drops it from the list
+    // (it's now in `existing`) so the next popular language takes its place.
+    const suggestions = POPULAR_LANGUAGES.filter((s) => !existing.has(s.variant)).slice(0, MAX_SUGGESTIONS);
+    const isAdding = addingVariant !== null;
 
     const addLanguageCta = (
-        <div className="wp-panel-languages-table__cta">
-            <div className="wp-panel-languages-table__cta-head">
-                <p className="wp-panel-languages-table__cta-title">Reach more of your global audience</p>
-                <p className="wp-panel-languages-table__cta-desc">
-                    Every language you add opens your site to a new market. Add more to grow your reach.
-                </p>
+        <>
+            <div className="wp-panel-languages-table__cta">
+                <div className="wp-panel-languages-table__cta-head">
+                    <p className="wp-panel-languages-table__cta-title">Reach more of your global audience</p>
+                    <p className="wp-panel-languages-table__cta-desc">
+                        Every language you add opens your site to a new market. Add more to grow your reach.
+                    </p>
+                </div>
+                {suggestions.length > 0 && (
+                    <div className="wp-panel-languages-table__cta-list">
+                        {suggestions.map((s) => {
+                            const adding = addingVariant === s.variant;
+                            return (
+                                <div key={s.variant} className="wp-panel-languages-table__cta-row">
+                                    <img
+                                        src={`${FLAG_CDN}/${s.cc}.svg`}
+                                        alt=""
+                                        className="wp-panel-languages-table__cta-flag"
+                                    />
+                                    <div className="wp-panel-languages-table__cta-info">
+                                        <span className="wp-panel-languages-table__cta-name">
+                                            {s.name}
+                                            <span className={`wp-panel-languages-table__cta-tag wp-panel-languages-table__cta-tag--${s.tone}`}>
+                                                {s.tag}
+                                            </span>
+                                        </span>
+                                        <span className="wp-panel-languages-table__cta-speakers">{formatUsers(s.speakers)}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="wp-panel-languages-table__btn wp-panel-languages-table__btn--add"
+                                        onClick={() => addLanguage(s.variant)}
+                                        disabled={isAdding}
+                                    >
+                                        {adding ? (
+                                            <>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="wp-panel-languages-table__refresh-icon--spinning">
+                                                    <polyline points="23 4 23 10 17 10"/>
+                                                    <polyline points="1 20 1 14 7 14"/>
+                                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                                </svg>
+                                                Adding…
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <line x1="12" y1="5" x2="12" y2="19"/>
+                                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                                </svg>
+                                                Add
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+                {addError && <p className="wp-panel-languages-table__cta-error">{addError}</p>}
+                <a
+                    className="wp-panel-languages-table__cta-all"
+                    href={dashboardUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Browse all languages &rarr;
+                </a>
             </div>
-            {suggestions.length > 0 && (
-                <div className="wp-panel-languages-table__cta-list">
-                    {suggestions.map((s) => (
-                        <div key={s.lang} className="wp-panel-languages-table__cta-row">
-                            <span className="wp-panel-languages-table__cta-flag">{s.flag}</span>
-                            <div className="wp-panel-languages-table__cta-info">
-                                <span className="wp-panel-languages-table__cta-name">
-                                    {s.name}
-                                    <span className={`wp-panel-languages-table__cta-tag wp-panel-languages-table__cta-tag--${s.tone}`}>
-                                        {s.tag}
-                                    </span>
-                                </span>
-                                <span className="wp-panel-languages-table__cta-speakers">{s.speakers}</span>
-                            </div>
+
+            {planLimitOpen && (
+                <Modal
+                    onRequestClose={() => setPlanLimitOpen(false)}
+                    className="wp-panel-languages-table__upsell-modal"
+                    size="medium"
+                    contentLabel="Upgrade to add more languages"
+                    __experimentalHideHeader
+                >
+                    <div className="wp-panel-languages-table__upsell">
+                        <button
+                            type="button"
+                            className="wp-panel-languages-table__upsell-close"
+                            aria-label="Close"
+                            onClick={() => setPlanLimitOpen(false)}
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+
+                        <div className="wp-panel-languages-table__upsell-body">
+                            <span className="wp-panel-languages-table__upsell-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                            </span>
+                            <h2 className="wp-panel-languages-table__upsell-title">
+                                Upgrade to add more languages and reach a wider audience
+                            </h2>
+                            <p className="wp-panel-languages-table__upsell-desc">
+                                You've reached your plan's language limit. Upgrade to keep
+                                translating into new markets and grow your global reach.
+                            </p>
                             <a
-                                className="wp-panel-languages-table__btn wp-panel-languages-table__btn--add"
-                                href={dashboardUrl}
+                                className="wp-panel-languages-table__upsell-cta"
+                                href={upgradeUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                onClick={() => setPlanLimitOpen(false)}
                             >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="12" y1="5" x2="12" y2="19"/>
-                                    <line x1="5" y1="12" x2="19" y2="12"/>
-                                </svg>
-                                Add
+                                Upgrade plan &amp; unlock more languages
                             </a>
                         </div>
-                    ))}
-                </div>
+
+                        <div className="wp-panel-languages-table__upsell-bonus">
+                            <span className="wp-panel-languages-table__upsell-bonus-check" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                    <polyline points="22 4 12 14.01 9 11.01"/>
+                                </svg>
+                            </span>
+                            <p>New languages go live automatically — translation starts the moment you upgrade.</p>
+                        </div>
+
+                        <div className="wp-panel-languages-table__upsell-foot">
+                            <button
+                                type="button"
+                                className="wp-panel-languages-table__upsell-later"
+                                onClick={() => setPlanLimitOpen(false)}
+                            >
+                                Maybe later
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
             )}
-            <a
-                className="wp-panel-languages-table__cta-all"
-                href={dashboardUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-            >
-                Browse all languages &rarr;
-            </a>
-        </div>
+        </>
     );
 
     if (loading && !data) {
