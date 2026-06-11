@@ -233,31 +233,85 @@ class Onboarding
      */
     private function renderShell(callable $content): void
     {
+        $logo = esc_url(UNIVERSALLY_PLUGIN_URI . 'assets/logo-full-dark.svg');
         ?>
         <div class="uvly-connect">
-            <img
-                class="uvly-connect__brand"
-                src="<?php echo esc_url(UNIVERSALLY_PLUGIN_URI . 'assets/logo-full-dark.svg'); ?>"
-                alt="Universally"
-            />
-            <div class="uvly-connect__card">
-                <?php $content(); ?>
+            <div class="uvly-connect__bg" aria-hidden="true"></div>
+            <div class="uvly-connect__inner">
+                <img class="uvly-connect__brand" src="<?php echo $logo; ?>" alt="Universally" />
+                <div class="uvly-connect__content">
+                    <?php $content(); ?>
+                </div>
             </div>
         </div>
         <style>
-            .uvly-connect { max-width: 640px; margin: 64px auto; text-align: center; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-            .uvly-connect__brand { display: inline-block; height: 28px; width: auto; margin-bottom: 28px; }
-            .uvly-connect__card { background: #fff; border: 1px solid #e2e4e7; border-radius: 8px; padding: 40px; }
-            .uvly-connect__card h1 { font-size: 22px; margin: 0 0 10px; }
-            .uvly-connect__card p { color: #50575e; font-size: 14px; margin: 0 0 8px; }
-            .uvly-connect__btn { display: inline-block; margin-top: 20px; background: #650cdf; color: #fff; border: 0; border-radius: 6px; padding: 12px 28px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; }
-            .uvly-connect__btn:hover { background: #6f1edd; color: #fff; }
-            .uvly-connect__link { display: inline-block; margin-top: 16px; color: #650cdf; font-size: 13px; }
-            .uvly-connect__spinner { width: 28px; height: 28px; margin: 8px auto 16px; border: 3px solid #d6bcfa; border-top-color: #650cdf; border-radius: 50%; animation: uvly-spin .8s linear infinite; }
+            /* Scoped to this page only — the style block is printed solely on the
+               connect screen, so it's safe to take over the admin content area. */
+            #wpcontent, #wpbody, #wpbody-content { padding: 0 !important; }
+            #wpfooter { display: none; }
+            .uvly-connect {
+                position: relative;
+                min-height: calc(100vh - 32px);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                background:
+                    radial-gradient(45rem 45rem at 12% 8%, rgba(124, 58, 237, 0.20), transparent 60%),
+                    radial-gradient(40rem 40rem at 88% 92%, rgba(101, 12, 223, 0.18), transparent 55%),
+                    linear-gradient(180deg, #faf9ff 0%, #f1ebfe 100%);
+            }
+            .uvly-connect__bg { position: absolute; inset: 0; pointer-events: none; }
+            .uvly-connect__bg::before,
+            .uvly-connect__bg::after {
+                content: ""; position: absolute; border-radius: 50%;
+                filter: blur(80px); opacity: 0.45;
+            }
+            .uvly-connect__bg::before { width: 360px; height: 360px; background: #a78bfa; top: -90px; left: -70px; }
+            .uvly-connect__bg::after { width: 460px; height: 460px; background: #7c3aed; bottom: -140px; right: -90px; opacity: 0.3; }
+            .uvly-connect__inner {
+                position: relative; z-index: 1;
+                width: 100%; max-width: 520px;
+                padding: 48px 40px; text-align: center;
+                animation: uvly-rise 0.5s cubic-bezier(0.16, 0.84, 0.44, 1) both;
+            }
+            @keyframes uvly-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+            .uvly-connect__brand { height: 36px; width: auto; margin-bottom: 32px; filter: drop-shadow(0 6px 16px rgba(101, 12, 223, 0.18)); }
+            .uvly-connect__content h1 {
+                font-size: 30px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em;
+                color: #1a1333; margin: 0 0 14px;
+            }
+            .uvly-connect__content p {
+                font-size: 15px; line-height: 1.65; color: #5d5573;
+                margin: 0 auto 28px; max-width: 30em;
+            }
+            .uvly-connect__btn {
+                display: inline-flex; align-items: center; justify-content: center;
+                background: linear-gradient(135deg, #7c3aed 0%, #650cdf 100%);
+                color: #fff; border: 0; border-radius: 12px; padding: 15px 34px;
+                font-size: 15px; font-weight: 700; text-decoration: none; cursor: pointer;
+                box-shadow: 0 12px 28px -10px rgba(101, 12, 223, 0.65);
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            }
+            .uvly-connect__btn:hover { transform: translateY(-2px); color: #fff; box-shadow: 0 18px 36px -10px rgba(101, 12, 223, 0.75); }
+            .uvly-connect__btn:active { transform: translateY(0); }
+            .uvly-connect__link {
+                display: inline-block; margin-top: 20px; color: #7c3aed;
+                font-size: 13px; text-decoration: none; font-weight: 500;
+            }
+            .uvly-connect__link:hover { color: #650cdf; text-decoration: underline; }
+            .uvly-connect__spinner {
+                width: 30px; height: 30px; margin: 4px auto 18px;
+                border: 3px solid rgba(124, 58, 237, 0.25); border-top-color: #7c3aed;
+                border-radius: 50%; animation: uvly-spin 0.8s linear infinite;
+            }
             @keyframes uvly-spin { to { transform: rotate(360deg); } }
-            .uvly-connect__ok { color: #00a32a; font-weight: 600; }
+            .uvly-connect__ok { color: #00a32a; font-weight: 700; }
             .uvly-connect__err { color: #d63638; }
             .uvly-connect--hidden { display: none; }
+            @media (max-width: 600px) { .uvly-connect__inner { padding: 32px 20px; } .uvly-connect__content h1 { font-size: 25px; } }
+            @media (prefers-reduced-motion: reduce) { .uvly-connect__inner { animation: none; } }
         </style>
         <?php
     }
@@ -271,8 +325,8 @@ class Onboarding
         $connectUrl  = $this->buildConnectUrl();
         $settingsUrl = admin_url('admin.php?page=' . UNIVERSALLY_SETTINGS_KEY);
         ?>
-        <h1><?php esc_html_e('Connect your site to Universally', 'universally-language-translation-multilingual-tool'); ?></h1>
-        <p><?php esc_html_e('Create your account, choose a plan, and pick your languages — then we’ll bring you right back here, connected.', 'universally-language-translation-multilingual-tool'); ?></p>
+        <h1><?php esc_html_e('Connect your site to start translating', 'universally-language-translation-multilingual-tool'); ?></h1>
+        <p><?php esc_html_e('Reach a global audience by translating your site into 110+ languages, automatically. Setup takes about a minute.', 'universally-language-translation-multilingual-tool'); ?></p>
         <a class="uvly-connect__btn" href="<?php echo esc_url($connectUrl); ?>">
             <?php esc_html_e('Connect to Universally', 'universally-language-translation-multilingual-tool'); ?>
         </a>
