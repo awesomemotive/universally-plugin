@@ -245,6 +245,9 @@ You can reach our support team through the [Universally dashboard](https://app.u
 
 == Changelog ==
 
+= 1.0.7 =
+* Fix: the plugin no longer triggers a fatal error when loaded under PHP older than 7.4 — for example a WP-CLI or cron process running an older PHP binary than the site itself. It now stops gracefully with an admin notice, and Composer's platform check no longer hard-fails the autoloader.
+
 = 1.0.6 =
 * New: Connect your site to Universally in one click. A guided setup saves your API key automatically — no manual copy-paste.
 * New: A connection panel in Settings shows your connection status and lets you manage it.
