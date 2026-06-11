@@ -252,6 +252,7 @@ You can reach our support team through the [Universally dashboard](https://app.u
 * New: A Preferences tab with an optional anonymous usage-data setting to help improve Universally. You can opt out at any time.
 * New: Add popular languages to your site in one click, right from the WordPress admin — no need to open the dashboard.
 * New: Prevent browsers (Chrome, Edge, and more) from auto-translating your pages, so visitors see your Universally translations instead. On by default; toggle under Preferences.
+* Improvement: After activation you land on a connect screen inside WordPress — instead of being sent straight to the app — so you choose when to continue.
 * Improvement: A clearer languages list — each language shows its full, clickable URL with a copy button and an at-a-glance status.
 * Fix: the language switcher's border radius now applies correctly after saving your styling options.
 * Fix: activating Universally from another plugin's setup wizard or a bulk/CLI install no longer interrupts that flow with the onboarding redirect.

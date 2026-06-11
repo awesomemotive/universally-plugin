@@ -4,11 +4,13 @@
  *
  * Onboarding lives entirely in the Universally app. The plugin is a thin client:
  *
- *   1. On first activation (and on demand) it redirects the admin OUT to the
- *      hosted flow at UNIVERSALLY_APP_URL/connect, passing the site URL, a
- *      return URL, and a short-lived `state` nonce (CSRF).
+ *   1. On first activation it sends the admin to an in-WP connect page (kept in
+ *      wp-admin so they aren't bounced off-site unexpectedly). From there the
+ *      "Connect to Universally" button launches the hosted flow at
+ *      UNIVERSALLY_APP_URL/connect, passing the site URL, a return URL, and a
+ *      short-lived `state` nonce (CSRF).
  *   2. The hosted flow handles account / plan / languages, then redirects back
- *      to a hidden admin callback page with `?activation_token=…&state=…`.
+ *      to that same connect page with `?activation_token=…&state=…`.
  *   3. The callback validates `state`, then runs the existing activation
  *      exchange → commit (see ActivationToken). The API key is fetched
  *      server-side and never reaches the browser — the page JS only ever sees
@@ -115,8 +117,10 @@ class Onboarding
             return;
         }
 
-        $this->allowAppHost();
-        wp_safe_redirect($this->buildConnectUrl());
+        // Land on the in-WP connect page rather than bouncing straight to the
+        // hosted app — the admin stays in WordPress and chooses when to continue
+        // (the connect page's "Connect to Universally" button launches the flow).
+        wp_safe_redirect(admin_url('admin.php?page=' . self::CALLBACK_SLUG));
         exit;
     }
 
@@ -369,17 +373,4 @@ class Onboarding
         return universally_get_app_url();
     }
 
-    /**
-     * Whitelist the app host so wp_safe_redirect() will allow the off-site jump.
-     */
-    private function allowAppHost(): void
-    {
-        add_filter('allowed_redirect_hosts', function (array $hosts): array {
-            $host = wp_parse_url($this->appBase(), PHP_URL_HOST);
-            if (is_string($host) && $host !== '') {
-                $hosts[] = $host;
-            }
-            return $hosts;
-        });
-    }
 }
