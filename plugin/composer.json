@@ -10,7 +10,8 @@
   "config": {
     "platform": {
       "php": "7.4"
-    }
+    },
+    "platform-check": false
   },
   "autoload": {
     "psr-4": {
