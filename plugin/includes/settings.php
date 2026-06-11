@@ -322,6 +322,20 @@ return [
         ],
         [
             'type' => 'section',
+            'id' => 'browser_translation_section',
+            'label' => __('Browser Translation', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'id' => 'prevent_browser_translation',
+            'type' => 'toggle',
+            'label' => __('Prevent browser auto-translation', 'universally-language-translation-multilingual-tool'),
+            'inlineLabel' => __('Stop browsers from offering to auto-translate your pages', 'universally-language-translation-multilingual-tool'),
+            'description' => __('Adds a notranslate meta tag and the translate="no" attribute so Chrome, Edge, and other browsers don’t offer to auto-translate your pages — visitors use your Universally translations instead.', 'universally-language-translation-multilingual-tool'),
+            'default' => true,
+            'sanitize' => 'bool',
+        ],
+        [
+            'type' => 'section',
             'id' => 'privacy_section',
             'label' => __('Privacy', 'universally-language-translation-multilingual-tool'),
         ],

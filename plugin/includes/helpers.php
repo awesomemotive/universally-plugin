@@ -415,3 +415,54 @@ function universally_hreflang_tags()
     // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- universally_get_hreflang_tags returns pre-escaped HTML
     echo universally_get_hreflang_tags();
 }
+
+/**
+ * Whether to block browser auto-translation on the front end.
+ *
+ * Defaults to true when the setting hasn't been saved, so existing sites get the
+ * behavior without re-saving. Controlled by the "Prevent browser auto-translation"
+ * toggle in the Preferences tab.
+ *
+ * @return bool
+ */
+function universally_prevent_browser_translation_enabled(): bool
+{
+    $settings = get_option('universally_settings', []);
+
+    if (!is_array($settings) || !array_key_exists('prevent_browser_translation', $settings)) {
+        return true;
+    }
+
+    return (bool) $settings['prevent_browser_translation'];
+}
+
+/**
+ * Emit a notranslate meta tag (Google / Chrome) so the browser doesn't offer to
+ * auto-translate the page — visitors should use the site's Universally
+ * translations instead. Hooked on wp_head.
+ */
+function universally_notranslate_meta(): void
+{
+    if (!universally_prevent_browser_translation_enabled()) {
+        return;
+    }
+
+    echo '<meta name="google" content="notranslate" />' . "\n";
+}
+
+/**
+ * Add the cross-browser translate="no" attribute to the <html> tag — honored by
+ * Chrome, Edge, Firefox, and Safari. Hooked on the language_attributes filter so
+ * it composes with WordPress's own lang="…" output.
+ *
+ * @param string $output Existing <html> attributes (e.g. lang="en-US").
+ * @return string
+ */
+function universally_html_translate_attr(string $output): string
+{
+    if (universally_prevent_browser_translation_enabled() && strpos($output, 'translate=') === false) {
+        $output .= ' translate="no"';
+    }
+
+    return $output;
+}
