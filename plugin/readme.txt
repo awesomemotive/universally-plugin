@@ -251,6 +251,7 @@ You can reach our support team through the [Universally dashboard](https://app.u
 * New: Settings are organized into tabs — General, Language Switcher, Styling, and Preferences — each reachable directly from the WordPress admin sidebar.
 * New: A Preferences tab with an optional anonymous usage-data setting to help improve Universally. You can opt out at any time.
 * New: Add popular languages to your site in one click, right from the WordPress admin — no need to open the dashboard.
+* New: Prevent browsers (Chrome, Edge, and more) from auto-translating your pages, so visitors see your Universally translations instead. On by default; toggle under Preferences.
 * Improvement: A clearer languages list — each language shows its full, clickable URL with a copy button and an at-a-glance status.
 * Fix: the language switcher's border radius now applies correctly after saving your styling options.
 
