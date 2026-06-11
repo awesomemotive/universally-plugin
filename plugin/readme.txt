@@ -254,6 +254,7 @@ You can reach our support team through the [Universally dashboard](https://app.u
 * New: Prevent browsers (Chrome, Edge, and more) from auto-translating your pages, so visitors see your Universally translations instead. On by default; toggle under Preferences.
 * Improvement: A clearer languages list — each language shows its full, clickable URL with a copy button and an at-a-glance status.
 * Fix: the language switcher's border radius now applies correctly after saving your styling options.
+* Fix: activating Universally from another plugin's setup wizard or a bulk/CLI install no longer interrupts that flow with the onboarding redirect.
 
 = 1.0.5 =
 * Fix: selecting the source language in the switcher now reliably restores the original language. The stored preference is cleared server-side, so switching back works in new tabs, on subdirectory and multisite installs, and with WordPress 6.8+ speculative loading.
