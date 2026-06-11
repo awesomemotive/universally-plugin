@@ -69,6 +69,17 @@ class Onboarding
      */
     public function scheduleRedirect(): void
     {
+        // Only arm the redirect for a genuine, user-initiated activation from the
+        // Plugins screen. Programmatic activations (REST / AJAX / WP-CLI) — e.g.
+        // another plugin's setup wizard or a host's bulk installer — must not
+        // hijack that flow with our onboarding redirect.
+        if (
+            wp_doing_ajax()
+            || (defined('REST_REQUEST') && REST_REQUEST)
+            || (defined('WP_CLI') && WP_CLI)
+        ) {
+            return;
+        }
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only bulk-activation guard mirroring WP core's own `activate-multi` check; no state change.
         if (is_network_admin() || isset($_GET['activate-multi'])) {
             return;
