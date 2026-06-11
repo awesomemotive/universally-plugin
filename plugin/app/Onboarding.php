@@ -233,12 +233,12 @@ class Onboarding
      */
     private function renderShell(callable $content): void
     {
-        $logo = esc_url(UNIVERSALLY_PLUGIN_URI . 'assets/logo-full-dark.svg');
+        $logo = UNIVERSALLY_PLUGIN_URI . 'assets/logo-full-dark.svg';
         ?>
         <div class="uvly-connect">
             <div class="uvly-connect__bg" aria-hidden="true"></div>
             <div class="uvly-connect__inner">
-                <img class="uvly-connect__brand" src="<?php echo $logo; ?>" alt="Universally" />
+                <img class="uvly-connect__brand" src="<?php echo esc_url($logo); ?>" alt="Universally" />
                 <div class="uvly-connect__content">
                     <?php $content(); ?>
                 </div>
