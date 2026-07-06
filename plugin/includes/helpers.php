@@ -419,9 +419,8 @@ function universally_hreflang_tags()
 /**
  * Whether to block browser auto-translation on the front end.
  *
- * Defaults to true when the setting hasn't been saved, so existing sites get the
- * behavior without re-saving. Controlled by the "Prevent browser auto-translation"
- * toggle in the Preferences tab.
+ * Defaults to false when the setting hasn't been saved. Controlled by the
+ * "Prevent browser auto-translation" toggle in the Preferences tab.
  *
  * @return bool
  */
@@ -430,10 +429,54 @@ function universally_prevent_browser_translation_enabled(): bool
     $settings = get_option('universally_settings', []);
 
     if (!is_array($settings) || !array_key_exists('prevent_browser_translation', $settings)) {
-        return true;
+        return false;
     }
 
     return (bool) $settings['prevent_browser_translation'];
+}
+
+/**
+ * Whether to also block browser auto-translation on the original (source) language
+ * pages, not just on translated pages.
+ *
+ * Defaults to false when the setting hasn't been saved, so by default the
+ * notranslate tags are emitted only on translated pages. Controlled by the
+ * "Also prevent it on the original language" toggle in the Preferences tab, which
+ * only applies when "Prevent browser auto-translation" is enabled.
+ *
+ * @return bool
+ */
+function universally_prevent_browser_translation_on_source_enabled(): bool
+{
+    $settings = get_option('universally_settings', []);
+
+    if (!is_array($settings) || !array_key_exists('prevent_browser_translation_source', $settings)) {
+        return false;
+    }
+
+    return (bool) $settings['prevent_browser_translation_source'];
+}
+
+/**
+ * Whether the notranslate tags should be emitted for the current request.
+ *
+ * Requires the master toggle to be on. Translated pages always qualify; the
+ * original (source) language page qualifies only when the source-language toggle
+ * is also enabled.
+ *
+ * @return bool
+ */
+function universally_should_emit_notranslate(): bool
+{
+    if (!universally_prevent_browser_translation_enabled()) {
+        return false;
+    }
+
+    if (universally_is_translated_page()) {
+        return true;
+    }
+
+    return universally_prevent_browser_translation_on_source_enabled();
 }
 
 /**
@@ -443,7 +486,7 @@ function universally_prevent_browser_translation_enabled(): bool
  */
 function universally_notranslate_meta(): void
 {
-    if (!universally_prevent_browser_translation_enabled()) {
+    if (!universally_should_emit_notranslate()) {
         return;
     }
 
@@ -460,7 +503,7 @@ function universally_notranslate_meta(): void
  */
 function universally_html_translate_attr(string $output): string
 {
-    if (universally_prevent_browser_translation_enabled() && strpos($output, 'translate=') === false) {
+    if (universally_should_emit_notranslate() && strpos($output, 'translate=') === false) {
         $output .= ' translate="no"';
     }
 
