@@ -245,7 +245,7 @@ You can reach our support team through the [Universally dashboard](https://app.u
 
 == Changelog ==
 
-= 1.0.7 =
+= 1.0.8 =
 * Improvement: A cleaner, full-screen experience when connecting your site to Universally.
 * Change: Browser auto-translation prevention is now off by default. You can turn it on anytime under Preferences, including a new option to also cover your original language.
 
