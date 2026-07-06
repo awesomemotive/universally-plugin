@@ -166,6 +166,11 @@ class Onboarding
     /**
      * Build the hosted onboarding URL, persisting a round-trip state nonce.
      *
+     * Targets /connect/account directly: the Welcome step is replicated in the
+     * plugin's own connect screen (see renderLanding), so the hosted flow starts
+     * at the account step. The anonymous-usage consent chosen in WP travels as the
+     * `usage` param and is echoed back to the plugin on return.
+     *
      * The state is reused while it's still valid (only generated when absent) so
      * that rendering the "Connect" button on the settings page — which can happen
      * repeatedly, even mid-flow — never rotates the nonce out from under an
@@ -188,9 +193,28 @@ class Onboarding
             'state'       => $state,
             'source'      => 'wp-plugin',
             'v'           => '1',
+            'usage'       => $this->usageConsentDefault() ? '1' : '0',
         ];
 
-        return add_query_arg($args, $this->appBase() . '/connect');
+        return add_query_arg($args, $this->appBase() . '/connect/account');
+    }
+
+    /**
+     * The site's current anonymous-usage-tracking preference, used as the default
+     * for the connect consent checkbox and as the outbound `usage` value.
+     *
+     * Defaults to opt-in (true) when unset — matching the usage_tracking setting's
+     * own default in the Preferences tab.
+     */
+    private function usageConsentDefault(): bool
+    {
+        $settings = get_option(UNIVERSALLY_SETTINGS_KEY, []);
+
+        if (is_array($settings) && array_key_exists('usage_tracking', $settings)) {
+            return (bool) $settings['usage_tracking'];
+        }
+
+        return true;
     }
 
     /**
@@ -233,6 +257,8 @@ class Onboarding
         }
         // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
+        $isWelcome = ($token === '');
+
         $this->renderShell(function () use ($token, $valid): void {
             if ($token === '') {
                 $this->renderLanding();
@@ -243,7 +269,7 @@ class Onboarding
             } else {
                 $this->renderConnecting($token);
             }
-        });
+        }, $isWelcome);
     }
 
     /* ------------------------------------------------------------------ */
@@ -254,15 +280,21 @@ class Onboarding
      * Full-width branded shell around the callback content.
      *
      * @param callable $content Echoes the inner content.
+     * @param bool     $welcome Welcome step — widen the column and drop the small
+     *                          wordmark (the hero illustration already carries the
+     *                          brand mark).
      */
-    private function renderShell(callable $content): void
+    private function renderShell(callable $content, bool $welcome = false): void
     {
         $logo = UNIVERSALLY_PLUGIN_URI . 'assets/logo-full-dark.svg';
+        $innerClass = 'uvly-connect__inner' . ($welcome ? ' uvly-connect__inner--welcome' : '');
         ?>
         <div class="uvly-connect">
             <div class="uvly-connect__bg" aria-hidden="true"></div>
-            <div class="uvly-connect__inner">
-                <img class="uvly-connect__brand" src="<?php echo esc_url($logo); ?>" alt="Universally" />
+            <div class="<?php echo esc_attr($innerClass); ?>">
+                <?php if (!$welcome) : ?>
+                    <img class="uvly-connect__brand" src="<?php echo esc_url($logo); ?>" alt="Universally" />
+                <?php endif; ?>
                 <div class="uvly-connect__content">
                     <?php $content(); ?>
                 </div>
@@ -300,6 +332,7 @@ class Onboarding
                 padding: 48px 40px; text-align: center;
                 animation: uvly-rise 0.5s cubic-bezier(0.16, 0.84, 0.44, 1) both;
             }
+            .uvly-connect__inner--welcome { max-width: 760px; padding-top: 32px; }
             @keyframes uvly-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
             .uvly-connect__brand { height: 36px; width: auto; margin-bottom: 32px; filter: drop-shadow(0 6px 16px rgba(101, 12, 223, 0.18)); }
             .uvly-connect__content h1 {
@@ -325,6 +358,35 @@ class Onboarding
                 font-size: 13px; text-decoration: none; font-weight: 500;
             }
             .uvly-connect__link:hover { color: #650cdf; text-decoration: underline; }
+            /* Welcome step: hero illustration, CTA arrow, and usage-consent row. */
+            .uvly-connect__globe {
+                display: block; width: 100%; max-width: 640px; height: auto;
+                margin: 0 auto 28px;
+            }
+            .uvly-connect__btn svg { margin-left: 8px; width: 16px; height: 16px; }
+            .uvly-connect__consent {
+                position: relative; max-width: 620px; margin: 44px auto 0; text-align: left;
+            }
+            .uvly-connect__consent-input {
+                position: absolute; width: 1px; height: 1px; margin: 0; padding: 0;
+                opacity: 0; pointer-events: none;
+            }
+            .uvly-connect__consent-label {
+                display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+                font-size: 13px; line-height: 1.6; color: #5d5573;
+            }
+            .uvly-connect__consent-box {
+                flex: 0 0 auto; width: 20px; height: 20px; margin-top: 1px;
+                display: inline-flex; align-items: center; justify-content: center;
+                border: 1.5px solid #cfc6e0; border-radius: 6px; background: #fff;
+                color: #7c3aed; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            }
+            .uvly-connect__consent-box svg { width: 13px; height: 13px; opacity: 0; }
+            .uvly-connect__consent-input:checked + .uvly-connect__consent-label .uvly-connect__consent-box { border-color: #7c3aed; }
+            .uvly-connect__consent-input:checked + .uvly-connect__consent-label .uvly-connect__consent-box svg { opacity: 1; }
+            .uvly-connect__consent-input:focus-visible + .uvly-connect__consent-label .uvly-connect__consent-box { box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25); }
+            .uvly-connect__consent-link { color: #7c3aed; text-decoration: underline; text-underline-offset: 2px; }
+            .uvly-connect__consent-link:hover { color: #650cdf; }
             .uvly-connect__spinner {
                 width: 30px; height: 30px; margin: 4px auto 18px;
                 border: 3px solid rgba(124, 58, 237, 0.25); border-top-color: #7c3aed;
@@ -341,23 +403,75 @@ class Onboarding
     }
 
     /**
-     * No token present — let the admin (re)launch the hosted flow or fall back
-     * to pasting a key manually.
+     * No token present — the replicated Welcome step. Mirrors the app's
+     * /connect Welcome screen (hero illustration, heading, CTA, and the
+     * anonymous-usage consent). "Let's Get Started" carries the consent choice
+     * as `usage` and lands on /connect/account, skipping the app's own Welcome.
      */
     private function renderLanding(): void
     {
         $connectUrl  = $this->buildConnectUrl();
         $settingsUrl = admin_url('admin.php?page=' . UNIVERSALLY_SETTINGS_KEY);
+        $globe       = UNIVERSALLY_PLUGIN_URI . 'assets/welcome-globe.png';
+        $consent     = $this->usageConsentDefault();
         ?>
-        <h1><?php esc_html_e('Connect your site to start translating', 'universally-language-translation-multilingual-tool'); ?></h1>
-        <p><?php esc_html_e('Reach a global audience by translating your site into 110+ languages, automatically. Setup takes about a minute.', 'universally-language-translation-multilingual-tool'); ?></p>
-        <a class="uvly-connect__btn" href="<?php echo esc_url($connectUrl); ?>">
-            <?php esc_html_e('Connect to Universally', 'universally-language-translation-multilingual-tool'); ?>
+        <img class="uvly-connect__globe" src="<?php echo esc_url($globe); ?>"
+             alt="<?php esc_attr_e('Universally connects your site to readers around the world', 'universally-language-translation-multilingual-tool'); ?>" />
+
+        <h1><?php esc_html_e('Welcome to Universally', 'universally-language-translation-multilingual-tool'); ?></h1>
+        <p>
+            <?php esc_html_e('Increase your global reach with Universally.', 'universally-language-translation-multilingual-tool'); ?>
+            <br>
+            <?php esc_html_e('Complete the process in just 5 minutes!', 'universally-language-translation-multilingual-tool'); ?>
+        </p>
+
+        <a id="uvly-cta" class="uvly-connect__btn" href="<?php echo esc_url($connectUrl); ?>">
+            <?php esc_html_e('Let’s Get Started', 'universally-language-translation-multilingual-tool'); ?>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </a>
+
+        <div class="uvly-connect__consent">
+            <input type="checkbox" id="uvly-usage" class="uvly-connect__consent-input" <?php checked($consent); ?> />
+            <label for="uvly-usage" class="uvly-connect__consent-label">
+                <span class="uvly-connect__consent-box" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </span>
+                <span>
+                    <?php esc_html_e('I agree to share anonymous usage data to help make Universally better for everyone. You can opt out at any time in Universally settings.', 'universally-language-translation-multilingual-tool'); ?>
+                    <a id="uvly-usage-link" class="uvly-connect__consent-link" href="https://universally.com/docs/usage-tracking-in-wordpress/" target="_blank" rel="noopener noreferrer">
+                        <?php esc_html_e('Learn more about anonymous usage tracking.', 'universally-language-translation-multilingual-tool'); ?>
+                    </a>
+                </span>
+            </label>
+        </div>
+
         <br>
         <a class="uvly-connect__link" href="<?php echo esc_url($settingsUrl); ?>">
             <?php esc_html_e('Already have an API key? Enter it manually', 'universally-language-translation-multilingual-tool'); ?>
         </a>
+
+        <script>
+        (function () {
+            var cb  = document.getElementById('uvly-usage');
+            var cta = document.getElementById('uvly-cta');
+            if (cb && cta) {
+                var sync = function () {
+                    try {
+                        var u = new URL(cta.href);
+                        u.searchParams.set('usage', cb.checked ? '1' : '0');
+                        cta.href = u.toString();
+                    } catch (e) {}
+                };
+                cb.addEventListener('change', sync);
+                sync();
+            }
+            // Keep the "Learn more" link from toggling the checkbox via the label.
+            var link = document.getElementById('uvly-usage-link');
+            if (link) {
+                link.addEventListener('click', function (e) { e.stopPropagation(); });
+            }
+        })();
+        </script>
         <?php
     }
 
