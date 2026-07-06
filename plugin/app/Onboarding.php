@@ -45,6 +45,30 @@ class Onboarding
         add_action('admin_init', [$this, 'maybeRedirect']);
         add_action('admin_menu', [$this, 'registerCallbackPage']);
         add_action('current_screen', [$this, 'setCallbackPageTitle']);
+        add_action('current_screen', [$this, 'suppressAdminNotices']);
+    }
+
+    /**
+     * Strip admin notices from the connect screen.
+     *
+     * This is a standalone, full-height branded page. Notices from core (the
+     * update nag) or other plugins render above our shell inside #wpbody-content
+     * and break the layout. current_screen fires before admin-header.php runs the
+     * notice hooks, so removing them here prevents the notices at the source
+     * rather than hiding them with CSS.
+     *
+     * @param \WP_Screen $screen
+     */
+    public function suppressAdminNotices($screen): void
+    {
+        if (!$screen || strpos((string) $screen->id, self::CALLBACK_SLUG) === false) {
+            return;
+        }
+
+        remove_all_actions('admin_notices');
+        remove_all_actions('all_admin_notices');
+        remove_all_actions('user_admin_notices');
+        remove_all_actions('network_admin_notices');
     }
 
     /**
