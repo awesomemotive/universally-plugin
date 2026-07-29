@@ -89,12 +89,13 @@ class WooCommerceEmails
         $translations = $translator->translateStrings([$subject], $locale);
 
         // All-or-nothing: a translated body with an untranslated subject (or
-        // vice versa) reads worse than a fully untranslated email.
-        if ($translations === null) {
+        // vice versa) reads worse than a fully untranslated email. A missing
+        // key means the worker answered but did not translate this string.
+        if ($translations === null || !isset($translations[$subject])) {
             return $args;
         }
 
-        $args[1] = $translations[$subject] ?? $subject;
+        $args[1] = $translations[$subject];
         $args[2] = $translatedMessage;
 
         return $args;
@@ -130,11 +131,21 @@ class WooCommerceEmails
         }
 
         $translated = [];
+        $changed = 0;
         foreach ($paragraphs as $paragraph) {
             $trimmed = trim($paragraph);
-            $translated[] = isset($translations[$trimmed])
-                ? str_replace($trimmed, $translations[$trimmed], $paragraph)
-                : $paragraph;
+            if (isset($translations[$trimmed]) && $translations[$trimmed] !== $trimmed) {
+                $translated[] = str_replace($trimmed, $translations[$trimmed], $paragraph);
+                $changed++;
+                continue;
+            }
+            $translated[] = $paragraph;
+        }
+
+        // Nothing came back translated — report failure rather than hand back a
+        // source-language body the caller would pair with a translated subject.
+        if ($changed === 0) {
+            return null;
         }
 
         return implode("\n\n", $translated);

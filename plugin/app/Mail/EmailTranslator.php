@@ -78,6 +78,14 @@ class EmailTranslator
             return null;
         }
 
+        // A 200 does not mean anything was translated: when the AI batch fails
+        // or every string is skipped, the worker echoes the original HTML back.
+        // Treat that as failure so the caller doesn't ship a "translated" body
+        // that is still in the source language.
+        if (empty($data['metadata']['stringsTranslated'])) {
+            return null;
+        }
+
         return $data['translatedHtml'] ?? null;
     }
 
