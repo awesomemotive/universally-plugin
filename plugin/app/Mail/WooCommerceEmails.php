@@ -73,9 +73,14 @@ class WooCommerceEmails
 
         $translator = new EmailTranslator();
 
+        // Synthetic source URL: must be a real URL on the site's own domain
+        // (the translator validates both), while the `__`-prefixed path keeps
+        // email bodies out of the site's page records.
+        $sourceUrl = home_url('/__email__/wc/' . $email->id . '/');
+
         $translatedMessage = $email->get_email_type() === 'plain'
             ? $this->translatePlainBody($translator, $message, $locale)
-            : $translator->translateHtml($message, $locale, '__email__/wc/' . $email->id);
+            : $translator->translateHtml($message, $locale, $sourceUrl);
 
         if ($translatedMessage === null) {
             return $args;
