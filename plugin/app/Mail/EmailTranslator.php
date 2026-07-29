@@ -20,13 +20,22 @@ if (!defined('ABSPATH')) {
 class EmailTranslator
 {
     /**
-     * Hard cap per HTTP call so translation never stalls an email send.
+     * Hard cap per HTTP call while a customer is waiting on the request that
+     * sends the email (a classic or Store API checkout).
      *
-     * Measured: a cached template comes back in ~50ms, a cold one needs a
-     * Gemini roundtrip at 2.5-4s — 5s trips on cold sends, which would keep
-     * a site that never warms its cache permanently untranslated.
+     * Measured against a real WooCommerce email over 18 requests: p50 1.8s,
+     * p90 6.1s, tail 12.3s. No single cap removes the tail — it only trades
+     * checkout latency for untranslated emails — so cap the blocking case
+     * here and outwait the tail in TIMEOUT_BACKGROUND below.
      */
     private const TIMEOUT = 10;
+
+    /**
+     * Cap when nobody is waiting: the send runs from cron or Action Scheduler
+     * (WooCommerce's deferred transactional emails), so covering Gemini's tail
+     * costs no one anything.
+     */
+    private const TIMEOUT_BACKGROUND = 20;
 
     /**
      * Translate plain-text strings. Returns an original => translated map.
@@ -73,6 +82,19 @@ class EmailTranslator
     }
 
     /**
+     * How long to wait on the translator, based on whether a customer is
+     * blocked on this request.
+     */
+    private function timeout(): int
+    {
+        $background = wp_doing_cron()
+            || did_action('action_scheduler_begin_execute')
+            || (defined('WP_CLI') && WP_CLI);
+
+        return $background ? self::TIMEOUT_BACKGROUND : self::TIMEOUT;
+    }
+
+    /**
      * POST to the translator worker and unwrap the response envelope.
      *
      * Returns the `data` payload, or null on any failure. A limitReached
@@ -89,7 +111,7 @@ class EmailTranslator
             return null;
         }
 
-        $http = new Http(UNIVERSALLY_TRANSLATOR_URL, self::TIMEOUT);
+        $http = new Http(UNIVERSALLY_TRANSLATOR_URL, $this->timeout());
         $response = $http->post($endpoint, $body, ['X-API-Key' => $apiKey], $gzip);
 
         if (!is_array($response) || empty($response['success'])) {
