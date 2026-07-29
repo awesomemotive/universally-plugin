@@ -21,6 +21,8 @@ use Universally\Migration;
 use Universally\Onboarding;
 use Universally\RestApi;
 use Universally\UnifiedBuffer;
+use Universally\Mail\OrderLanguage;
+use Universally\Mail\WooCommerceEmails;
 
 if (!defined('ABSPATH')) {
     exit;
@@ -97,3 +99,5 @@ new AdminBar();
 new RestApi();
 new ActivationToken();
 new Onboarding();
+new OrderLanguage();
+new WooCommerceEmails();
