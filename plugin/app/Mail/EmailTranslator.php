@@ -21,8 +21,12 @@ class EmailTranslator
 {
     /**
      * Hard cap per HTTP call so translation never stalls an email send.
+     *
+     * Measured: a cached template comes back in ~50ms, a cold one needs a
+     * Gemini roundtrip at 2.5-4s — 5s trips on cold sends, which would keep
+     * a site that never warms its cache permanently untranslated.
      */
-    private const TIMEOUT = 5;
+    private const TIMEOUT = 10;
 
     /**
      * Translate plain-text strings. Returns an original => translated map.
