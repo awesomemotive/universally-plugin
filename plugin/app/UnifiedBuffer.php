@@ -118,7 +118,7 @@ class UnifiedBuffer
             $this->stripLanguagePrefix($pathAfterPrefix);
         }
         $this->preserveLanguagePrefixOnRedirects($langCode);
-        $this->preserveLanguagePrefixOnWooCommerceUrls($langCode);
+        (new Compat\Manager())->register($langCode);
 
         // Don't capture responses from endpoints that return JSON/XML — translating
         // those bodies as HTML would corrupt the response. Frontend HTML rendered as
@@ -415,21 +415,6 @@ class UnifiedBuffer
         add_filter('wp_redirect', function (string $location) use ($langCode): string {
             return universally_prefix_url_with_language($location, $langCode);
         });
-    }
-
-    /**
-     * Ensure same-origin form actions / outbound URLs WC emits carry the language
-     * prefix, so the resulting POST or navigation stays in the visitor's language.
-     */
-    private function preserveLanguagePrefixOnWooCommerceUrls(string $langCode): void
-    {
-        $filter = function (string $url) use ($langCode): string {
-            return universally_prefix_url_with_language($url, $langCode);
-        };
-
-        // Form action for the single-product add-to-cart form (the case where
-        // submitting otherwise drops the visitor to the unprefixed product URL).
-        add_filter('woocommerce_add_to_cart_form_action', $filter);
     }
 
     public function translateBuffer(string $buffer): string
