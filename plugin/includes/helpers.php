@@ -537,3 +537,62 @@ function universally_path_is_non_translatable(string $path): bool
      */
     return (bool) apply_filters('universally_path_is_non_translatable', $isNonTranslatable, $path);
 }
+
+/**
+ * Resolve a URL language code (e.g. "es") to its locale variant (e.g. "es-MX").
+ *
+ * @param string $urlCode Lowercase URL prefix code.
+ * @return string|false Locale variant, or false when the code is not an
+ *                      enabled target language.
+ */
+function universally_resolve_url_code_to_locale(string $urlCode)
+{
+    $allLanguages = universally_get_all_languages();
+
+    if (!is_array($allLanguages) || empty($allLanguages)) {
+        return false;
+    }
+
+    foreach ($allLanguages as $language) {
+        if (isset($language['urlPrefix']) && $language['urlPrefix'] === $urlCode && empty($language['isDisabled'])) {
+            return $language['variant'] ?? false;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Prefix a same-origin URL with /{langCode}/. Returns the URL unchanged when
+ * it points at another host, hits a WordPress system path, or already carries
+ * a valid language prefix.
+ */
+function universally_prefix_url_with_language(string $url, string $langCode): string
+{
+    $parsed = wp_parse_url($url);
+    $path = $parsed['path'] ?? '/';
+
+    $siteHost = wp_parse_url(home_url(), PHP_URL_HOST);
+    if (!empty($parsed['host']) && $parsed['host'] !== $siteHost) {
+        return $url;
+    }
+
+    if (preg_match('/^\/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json)/', $path)) {
+        return $url;
+    }
+
+    $firstSegment = strtolower(explode('/', trim($path, '/'))[0] ?? '');
+    if ($firstSegment !== '' && universally_resolve_url_code_to_locale($firstSegment) !== false) {
+        return $url;
+    }
+
+    $newPath = '/' . $langCode . $path;
+    $query = !empty($parsed['query']) ? '?' . $parsed['query'] : '';
+
+    if (!empty($parsed['host'])) {
+        $scheme = $parsed['scheme'] ?? 'https';
+        return $scheme . '://' . $parsed['host'] . $newPath . $query;
+    }
+
+    return $newPath . $query;
+}
