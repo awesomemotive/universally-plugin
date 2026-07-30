@@ -110,6 +110,12 @@ class UnifiedBuffer
             if ($pathAfterPrefix === null) {
                 $this->redirectToTrailingSlash($langCode);
             }
+            // Non-HTML endpoints (feeds, sitemaps, robots.txt, system paths)
+            // must never serve source-language content with 200 at a /{lang}/
+            // URL — bounce them to the source URL before touching cookies.
+            if ($this->isNonTranslatableRequest($pathAfterPrefix)) {
+                $this->redirectToSource($pathAfterPrefix);
+            }
             $this->setLanguageCookie($langCode);
             if (universally_path_is_excluded($pathAfterPrefix)) {
                 $this->redirectToSource($pathAfterPrefix);
@@ -246,6 +252,22 @@ class UnifiedBuffer
     }
 
     /**
+     * Whether the current prefixed request targets an endpoint the translator
+     * can never process (feed, sitemap, file-like or WP system path).
+     */
+    private function isNonTranslatableRequest(string $pathAfterPrefix): bool
+    {
+        // WordPress renders a feed for ?feed=rss2 on any URL. Presence check
+        // only — the value is never used, so nonce verification doesn't apply.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        if (isset($_GET['feed'])) {
+            return true;
+        }
+
+        return universally_path_is_non_translatable($pathAfterPrefix);
+    }
+
+    /**
      * For visitors with a stored language preference, redirect unprefixed GET
      * requests to the matching /{lang}/ URL. Skips WordPress system endpoints,
      * file-like paths, and pages excluded from translation.
@@ -257,13 +279,9 @@ class UnifiedBuffer
         $parsed = wp_parse_url($requestUri);
         $path = $parsed['path'] ?? '/';
 
-        // Skip WordPress system endpoints
-        if (preg_match('#^/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json|wp-cron\.php|wp-trackback\.php|wp-comments-post\.php|xmlrpc\.php)(/|$)#', $path)) {
-            return;
-        }
-
-        // Skip file-like paths (sitemap.xml, favicon.ico, robots.txt, etc.)
-        if (preg_match('/\.[a-z0-9]{1,5}$/i', $path)) {
+        // Skip endpoints that are never translated (system paths, feeds,
+        // file-like URLs such as sitemap.xml or robots.txt).
+        if (universally_path_is_non_translatable($path)) {
             return;
         }
 

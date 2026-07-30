@@ -509,3 +509,31 @@ function universally_html_translate_attr(string $output): string
 
     return $output;
 }
+
+/**
+ * Whether a path (already stripped of any language prefix) points at an
+ * endpoint the translator can never process: WordPress system endpoints,
+ * feeds, or file-like URLs (sitemap.xml, robots.txt, favicon.ico, …).
+ *
+ * Requests to such paths under a /{lang}/ prefix are 301-redirected to the
+ * source URL instead of serving untranslated content at a translated URL.
+ *
+ * @param string $path URL path, e.g. "/feed/" or "/wp-sitemap.xml".
+ * @return bool
+ */
+function universally_path_is_non_translatable(string $path): bool
+{
+    $isNonTranslatable = (bool) (
+        preg_match('#^/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json|wp-cron\.php|wp-trackback\.php|wp-comments-post\.php|xmlrpc\.php)(/|$)#', $path)
+        || preg_match('#(^|/)feed(/|$)#', $path)
+        || preg_match('/\.[a-z0-9]{1,5}$/i', $path)
+    );
+
+    /**
+     * Filter whether a path is excluded from translated routing.
+     *
+     * @param bool   $isNonTranslatable Default classification.
+     * @param string $path              The URL path being classified.
+     */
+    return (bool) apply_filters('universally_path_is_non_translatable', $isNonTranslatable, $path);
+}

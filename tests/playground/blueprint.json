@@ -9,6 +9,10 @@
     {
       "step": "activatePlugin",
       "pluginPath": "universally-language-translation-multilingual-tool/universally.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require_once '/wordpress/wp-load.php'; set_transient('universally_all_languages', array(array('name' => 'English', 'originalName' => 'English', 'region' => 'en-US', 'flagUrl' => 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'lang' => 'en', 'variant' => 'en-US', 'urlPrefix' => '', 'isSource' => true), array('name' => 'Spanish', 'originalName' => 'Español', 'region' => 'es-MX', 'flagUrl' => 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'lang' => 'es', 'variant' => 'es-MX', 'urlPrefix' => 'es', 'isSource' => false, 'isDisabled' => false)), 0);"
     }
   ]
 }
