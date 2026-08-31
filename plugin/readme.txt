@@ -2,7 +2,7 @@
 Contributors: benjaminprojas, _smartik_, smub
 Tags: translate, translation, multilingual, language switcher, multilingual seo
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 1.0.8
 License: GPLv2 or later
@@ -244,6 +244,10 @@ You can reach our support team through the [Universally dashboard](https://app.u
 7. Language switcher styling — Customize trigger and dropdown colors, borders, border radius, and flag style.
 
 == Changelog ==
+
+= 1.0.9 =
+* New: An SEO setting under Preferences to choose your hreflang format — region codes (fr-FR, pt-BR) or language only (fr, pt). Pick language only if you keep one translation per language rather than one per country, so it reaches every speaker of that language. Region codes remain the default, so existing sites are unchanged.
+* New: Filters throughout the plugin's helper functions so developers can extend it without unhooking anything. For hreflang: `universally_hreflang_links` (add, remove or retarget alternates as a code => URL array), `universally_hreflang_code`, `universally_hreflang_format` and `universally_hreflang_tags`. For languages and URLs: `universally_languages`, `universally_switcher_urls` and `universally_language_url`. For exclusions and browser translation: `universally_site_config`, `universally_exclude_pages`, `universally_path_is_excluded` and `universally_should_emit_notranslate`. For the language switcher: `universally_switcher_config` and `universally_switcher_html`, both covering the shortcode, auto-insert and block at once.
 
 = 1.0.8 =
 * Improvement: A cleaner, full-screen experience when connecting your site to Universally.
