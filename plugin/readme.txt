@@ -249,7 +249,6 @@ You can reach our support team through the [Universally dashboard](https://app.u
 * Improvement: A cleaner, full-screen experience when connecting your site to Universally.
 * Change: Browser auto-translation prevention is now off by default. You can turn it on anytime under Preferences, including a new option to also cover your original language.
 * Fix: feeds, sitemaps, and other non-HTML URLs under a language prefix (for example /es/feed/ or /es/sitemap.xml) now redirect to the original URL instead of serving untranslated content at a translated address.
-* Improvement: new third-party compatibility layer. With MonsterInsights, translated page views are now reported to Google Analytics under the translated URL instead of the original one.
 
 = 1.0.6.1 =
 * Fix: the plugin no longer triggers a fatal error when loaded under PHP older than 7.4 — for example a WP-CLI or cron process running an older PHP binary than the site itself. It now stops gracefully with an admin notice, and Composer's platform check no longer hard-fails the autoloader.

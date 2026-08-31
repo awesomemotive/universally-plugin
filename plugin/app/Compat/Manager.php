@@ -22,7 +22,6 @@ class Manager
     {
         return [
             new WooCommerce(),
-            new MonsterInsights(),
         ];
     }
 
