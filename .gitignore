@@ -52,3 +52,4 @@ build/
 .qwp
 docs/
 CLAUDE.md
+.claude
