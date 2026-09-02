@@ -42,6 +42,15 @@ class Onboarding
     /** Value sent when we cannot tell how the plugin was installed. */
     private const INSTALL_SOURCE_FALLBACK = 'wp-plugin';
 
+    /**
+     * Option a partner installer (AIOSEO, MonsterInsights, …) writes to name the
+     * placement that triggered the install, e.g. `aioseo_setup_wizard`.
+     */
+    private const INSTALLED_BY_OPTION = 'universally_installed_by';
+
+    /** Upper bound the hosted flow accepts for `source`. */
+    private const SOURCE_MAX_LEN = 64;
+
     /** Hidden admin page slug used as the hosted-flow return target. */
     public const CALLBACK_SLUG = 'universally-connect';
 
@@ -111,6 +120,28 @@ class Onboarding
         }
 
         update_option(self::INSTALL_SOURCE_OPTION, $this->detectInstallSource(), false);
+    }
+
+    /**
+     * The `source` value for the hosted connect flow.
+     *
+     * A partner's explicit placement beats our own referer sniffing: it says
+     * *where inside* AIOSEO or MonsterInsights the install was triggered, which the
+     * referer cannot. Read at connect time rather than in the activation hook
+     * because the partner may write the option after our activation already ran.
+     * Namespaced under the fallback so it still groups as a plugin install.
+     */
+    private function connectSource(): string
+    {
+        $installedBy = get_option(self::INSTALLED_BY_OPTION, '');
+        if (is_string($installedBy) && $installedBy !== '') {
+            $normalized = preg_replace('/[^a-z0-9_.-]/', '', strtolower($installedBy));
+            if (is_string($normalized) && $normalized !== '') {
+                return substr(self::INSTALL_SOURCE_FALLBACK . '.' . $normalized, 0, self::SOURCE_MAX_LEN);
+            }
+        }
+
+        return (string) get_option(self::INSTALL_SOURCE_OPTION, self::INSTALL_SOURCE_FALLBACK);
     }
 
     /**
@@ -264,7 +295,7 @@ class Onboarding
             'site_locale' => get_locale(),
             'return_url'  => admin_url('admin.php?page=' . self::CALLBACK_SLUG),
             'state'       => $state,
-            'source'      => (string) get_option(self::INSTALL_SOURCE_OPTION, self::INSTALL_SOURCE_FALLBACK),
+            'source'      => $this->connectSource(),
             'v'           => '1',
             'usage'       => $this->usageConsentDefault() ? '1' : '0',
         ];
