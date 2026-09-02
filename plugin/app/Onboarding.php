@@ -36,11 +36,27 @@ class Onboarding
     /** State TTL — long enough to span the whole hosted onboarding flow. */
     private const STATE_TTL = 3600;
 
+    /** Option recording how the plugin got installed; set once, on first activation. */
+    private const INSTALL_SOURCE_OPTION = 'universally_install_source';
+
+    /** Value sent when we cannot tell how the plugin was installed. */
+    private const INSTALL_SOURCE_FALLBACK = 'wp-plugin';
+
+    /**
+     * Option a partner installer (AIOSEO, MonsterInsights, …) writes to name the
+     * placement that triggered the install, e.g. `aioseo_setup_wizard`.
+     */
+    private const INSTALLED_BY_OPTION = 'universally_installed_by';
+
+    /** Upper bound the hosted flow accepts for `source`. */
+    private const SOURCE_MAX_LEN = 64;
+
     /** Hidden admin page slug used as the hosted-flow return target. */
     public const CALLBACK_SLUG = 'universally-connect';
 
     public function __construct()
     {
+        register_activation_hook(UNIVERSALLY_PLUGIN_FILE, [$this, 'recordInstallSource']);
         register_activation_hook(UNIVERSALLY_PLUGIN_FILE, [$this, 'scheduleRedirect']);
         add_action('admin_init', [$this, 'maybeRedirect']);
         add_action('admin_menu', [$this, 'registerCallbackPage']);
@@ -85,6 +101,94 @@ class Onboarding
             // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- intentional: core leaves $title null on this parentless page, triggering a strip_tags() deprecation in admin-header.php on PHP 8.1+.
             $GLOBALS['title'] = __('Connecting to Universally', 'universally-language-translation-multilingual-tool');
         }
+    }
+
+    /**
+     * Record how this install arrived, on first activation only.
+     *
+     * Deliberately has no AJAX/REST/CLI guard, unlike scheduleRedirect: an
+     * auto-install from another Awesome Motive plugin's wizard IS a programmatic
+     * activation, and that is exactly the case we are trying to identify. Stored
+     * in an option rather than a transient because connecting can happen days
+     * after activation, and first install wins so a deactivate/reactivate cycle
+     * cannot rewrite the original provenance.
+     */
+    public function recordInstallSource(): void
+    {
+        if (get_option(self::INSTALL_SOURCE_OPTION, '') !== '') {
+            return;
+        }
+
+        update_option(self::INSTALL_SOURCE_OPTION, $this->detectInstallSource(), false);
+    }
+
+    /**
+     * The `source` value for the hosted connect flow.
+     *
+     * A partner's explicit placement beats our own referer sniffing: it says
+     * *where inside* AIOSEO or MonsterInsights the install was triggered, which the
+     * referer cannot. Read at connect time rather than in the activation hook
+     * because the partner may write the option after our activation already ran.
+     * Namespaced under the fallback so it still groups as a plugin install.
+     */
+    private function connectSource(): string
+    {
+        $installedBy = get_option(self::INSTALLED_BY_OPTION, '');
+        if (is_string($installedBy) && $installedBy !== '') {
+            $normalized = preg_replace('/[^a-z0-9_.-]/', '', strtolower($installedBy));
+            if (is_string($normalized) && $normalized !== '') {
+                return substr(self::INSTALL_SOURCE_FALLBACK . '.' . $normalized, 0, self::SOURCE_MAX_LEN);
+            }
+        }
+
+        return (string) get_option(self::INSTALL_SOURCE_OPTION, self::INSTALL_SOURCE_FALLBACK);
+    }
+
+    /**
+     * Best-effort provenance from the admin page that triggered the activation.
+     *
+     * Values stay within the hosted flow's `source` contract (lowercase, dots and
+     * dashes, max 32 chars) so they land in acquisition reporting as-is.
+     *
+     * ponytail: referer sniffing, not a handshake. It cannot see an install done
+     * over WP-CLI or by a host's bulk provisioner, which both report the
+     * fallback. If the AM installers ever pass an explicit source param, read
+     * that here first and keep this as the fallback.
+     */
+    private function detectInstallSource(): string
+    {
+        $referer = wp_get_referer();
+        if (!is_string($referer) || $referer === '') {
+            return self::INSTALL_SOURCE_FALLBACK;
+        }
+
+        $installers = [
+            'aioseo'          => 'wp-plugin.aioseo',
+            'monsterinsights' => 'wp-plugin.monsterinsights',
+            'wpforms'         => 'wp-plugin.wpforms',
+            'optinmonster'    => 'wp-plugin.optinmonster',
+            'seedprod'        => 'wp-plugin.seedprod',
+            'wp-mail-smtp'    => 'wp-plugin.wpmailsmtp',
+            'duplicator'      => 'wp-plugin.duplicator',
+            'wpconsent'       => 'wp-plugin.wpconsent',
+        ];
+
+        foreach ($installers as $needle => $source) {
+            if (strpos($referer, $needle) !== false) {
+                return $source;
+            }
+        }
+
+        // Plain WordPress routes, checked after the installers: an AM wizard runs
+        // its install through admin-ajax, so its referer never looks like these.
+        if (strpos($referer, 'plugin-install.php') !== false) {
+            return 'wp-plugin.search';
+        }
+        if (strpos($referer, 'plugins.php') !== false) {
+            return 'wp-plugin.plugins-screen';
+        }
+
+        return self::INSTALL_SOURCE_FALLBACK;
     }
 
     /**
@@ -191,7 +295,7 @@ class Onboarding
             'site_locale' => get_locale(),
             'return_url'  => admin_url('admin.php?page=' . self::CALLBACK_SLUG),
             'state'       => $state,
-            'source'      => 'wp-plugin',
+            'source'      => $this->connectSource(),
             'v'           => '1',
             'usage'       => $this->usageConsentDefault() ? '1' : '0',
         ];
