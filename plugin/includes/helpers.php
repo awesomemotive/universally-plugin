@@ -509,3 +509,105 @@ function universally_html_translate_attr(string $output): string
 
     return $output;
 }
+
+/**
+ * Whether a path (already stripped of any language prefix) points at an
+ * endpoint the translator can never process: WordPress system endpoints,
+ * feeds (any of WP's feed slugs), or known non-HTML files (sitemap.xml,
+ * robots.txt, favicon.ico, …). HTML-like extensions (.html, .htm, .php) are
+ * intentionally NOT matched so custom permalink structures keep translating.
+ *
+ * Requests to such paths under a /{lang}/ prefix are 301-redirected to the
+ * source URL instead of serving untranslated content at a translated URL.
+ *
+ * @param string $path URL path, e.g. "/feed/" or "/wp-sitemap.xml".
+ * @return bool
+ */
+function universally_path_is_non_translatable(string $path): bool
+{
+    // WordPress registers five feed slugs ($wp_rewrite->feeds), valid at the
+    // root, under /comments/, and after any permalink. All are reserved, so a
+    // real page can never own one of these segments.
+    $feedSegment = '(^|/)(feed|rdf|rss|rss2|atom)(/|$)';
+
+    // Known non-HTML file extensions. Deliberately an allowlist: a catch-all
+    // "any dotted suffix" would also match .html/.htm/.php permalink
+    // structures (/%postname%.html) and 301 every translated page back to
+    // the source language.
+    $fileExtension = '\.(xml|xsl|xslt|gz|txt|json|webmanifest|ico|rss|atom|rdf|kml'
+        . '|css|js|map|png|jpe?g|gif|svg|webp|avif|bmp|pdf|woff2?|ttf|otf|eot'
+        . '|mp3|mp4|webm|ogg|zip)$';
+
+    $isNonTranslatable = (bool) (
+        preg_match('#^/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json|wp-cron\.php|wp-trackback\.php|wp-comments-post\.php|xmlrpc\.php)(/|$)#', $path)
+        || preg_match('#' . $feedSegment . '#', $path)
+        || preg_match('#' . $fileExtension . '#i', $path)
+    );
+
+    /**
+     * Filter whether a path is excluded from translated routing.
+     *
+     * @param bool   $isNonTranslatable Default classification.
+     * @param string $path              The URL path being classified.
+     */
+    return (bool) apply_filters('universally_path_is_non_translatable', $isNonTranslatable, $path);
+}
+
+/**
+ * Resolve a URL language code (e.g. "es") to its locale variant (e.g. "es-MX").
+ *
+ * @param string $urlCode Lowercase URL prefix code.
+ * @return string|false Locale variant, or false when the code is not an
+ *                      enabled target language.
+ */
+function universally_resolve_url_code_to_locale(string $urlCode)
+{
+    $allLanguages = universally_get_all_languages();
+
+    if (!is_array($allLanguages) || empty($allLanguages)) {
+        return false;
+    }
+
+    foreach ($allLanguages as $language) {
+        if (isset($language['urlPrefix']) && $language['urlPrefix'] === $urlCode && empty($language['isDisabled'])) {
+            return $language['variant'] ?? false;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Prefix a same-origin URL with /{langCode}/. Returns the URL unchanged when
+ * it points at another host, hits a WordPress system path, or already carries
+ * a valid language prefix.
+ */
+function universally_prefix_url_with_language(string $url, string $langCode): string
+{
+    $parsed = wp_parse_url($url);
+    $path = $parsed['path'] ?? '/';
+
+    $siteHost = wp_parse_url(home_url(), PHP_URL_HOST);
+    if (!empty($parsed['host']) && $parsed['host'] !== $siteHost) {
+        return $url;
+    }
+
+    if (preg_match('/^\/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json)/', $path)) {
+        return $url;
+    }
+
+    $firstSegment = strtolower(explode('/', trim($path, '/'))[0] ?? '');
+    if ($firstSegment !== '' && universally_resolve_url_code_to_locale($firstSegment) !== false) {
+        return $url;
+    }
+
+    $newPath = '/' . $langCode . $path;
+    $query = !empty($parsed['query']) ? '?' . $parsed['query'] : '';
+
+    if (!empty($parsed['host'])) {
+        $scheme = $parsed['scheme'] ?? 'https';
+        return $scheme . '://' . $parsed['host'] . $newPath . $query;
+    }
+
+    return $newPath . $query;
+}

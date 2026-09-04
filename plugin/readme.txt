@@ -2,7 +2,7 @@
 Contributors: benjaminprojas, _smartik_, smub
 Tags: translate, translation, multilingual, language switcher, multilingual seo
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 1.0.8
 License: GPLv2 or later
@@ -244,6 +244,9 @@ You can reach our support team through the [Universally dashboard](https://app.u
 7. Language switcher styling — Customize trigger and dropdown colors, borders, border radius, and flag style.
 
 == Changelog ==
+
+= 1.0.9 =
+* Fix: feeds, sitemaps, and other non-HTML URLs under a language prefix (for example /es/feed/ or /es/sitemap.xml) now redirect to the original URL instead of serving untranslated content at a translated address.
 
 = 1.0.8 =
 * Improvement: A cleaner, full-screen experience when connecting your site to Universally.
