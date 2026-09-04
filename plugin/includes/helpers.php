@@ -513,7 +513,9 @@ function universally_html_translate_attr(string $output): string
 /**
  * Whether a path (already stripped of any language prefix) points at an
  * endpoint the translator can never process: WordPress system endpoints,
- * feeds, or file-like URLs (sitemap.xml, robots.txt, favicon.ico, …).
+ * feeds (any of WP's feed slugs), or known non-HTML files (sitemap.xml,
+ * robots.txt, favicon.ico, …). HTML-like extensions (.html, .htm, .php) are
+ * intentionally NOT matched so custom permalink structures keep translating.
  *
  * Requests to such paths under a /{lang}/ prefix are 301-redirected to the
  * source URL instead of serving untranslated content at a translated URL.
@@ -523,10 +525,23 @@ function universally_html_translate_attr(string $output): string
  */
 function universally_path_is_non_translatable(string $path): bool
 {
+    // WordPress registers five feed slugs ($wp_rewrite->feeds), valid at the
+    // root, under /comments/, and after any permalink. All are reserved, so a
+    // real page can never own one of these segments.
+    $feedSegment = '(^|/)(feed|rdf|rss|rss2|atom)(/|$)';
+
+    // Known non-HTML file extensions. Deliberately an allowlist: a catch-all
+    // "any dotted suffix" would also match .html/.htm/.php permalink
+    // structures (/%postname%.html) and 301 every translated page back to
+    // the source language.
+    $fileExtension = '\.(xml|xsl|xslt|gz|txt|json|webmanifest|ico|rss|atom|rdf|kml'
+        . '|css|js|map|png|jpe?g|gif|svg|webp|avif|bmp|pdf|woff2?|ttf|otf|eot'
+        . '|mp3|mp4|webm|ogg|zip)$';
+
     $isNonTranslatable = (bool) (
         preg_match('#^/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json|wp-cron\.php|wp-trackback\.php|wp-comments-post\.php|xmlrpc\.php)(/|$)#', $path)
-        || preg_match('#(^|/)feed(/|$)#', $path)
-        || preg_match('/\.[a-z0-9]{1,5}$/i', $path)
+        || preg_match('#' . $feedSegment . '#', $path)
+        || preg_match('#' . $fileExtension . '#i', $path)
     );
 
     /**
