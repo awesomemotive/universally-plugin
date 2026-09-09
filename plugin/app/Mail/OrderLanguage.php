@@ -15,8 +15,10 @@ if (!defined('ABSPATH')) {
 
 class OrderLanguage
 {
+    /** Persisted language variant for later transactional-email delivery. */
     public const META_KEY = '_universally_customer_language';
 
+    /** Capture the customer's language in classic and Store API checkout. */
     public function __construct()
     {
         // Classic checkout: order not yet saved, meta persists with it.

@@ -17,12 +17,22 @@ if (!defined('ABSPATH')) {
 
 class WooCommerceEmails
 {
+    /**
+     * These emails contain live account credentials/reset keys, which must
+     * never enter translation memory. Keep this boundary even if account
+     * language support later removes the WC_Order guard. A generic wp_mail
+     * adapter must use a positive allowlist of safe email types instead.
+     */
+    private const NEVER_TRANSLATE = ['customer_reset_password', 'customer_new_account'];
+
+    /** Register setup after WooCommerce and competing translators load. */
     public function __construct()
     {
         // Defer: WooCommerce and multilingual plugins are loaded by now.
         add_action('plugins_loaded', [$this, 'setup'], 20);
     }
 
+    /** Install the rendered-email filter when Universally owns translation. */
     public function setup(): void
     {
         if (!class_exists('WooCommerce')) {
@@ -44,6 +54,11 @@ class WooCommerceEmails
      */
     public function translateEmail($args, $email): array
     {
+        // Explicit security boundary, independent of the order/language guards.
+        if ($email instanceof \WC_Email && in_array($email->id, self::NEVER_TRANSLATE, true)) {
+            return $args;
+        }
+
         if (!is_array($args) || !universally_translate_emails_enabled()) {
             return $args;
         }

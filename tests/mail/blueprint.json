@@ -1,0 +1,26 @@
+{
+  "preferredVersions": {
+    "php": "7.4",
+    "wp": "7.1"
+  },
+  "steps": [
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "woocommerce"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "universally-language-translation-multilingual-tool/universally.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php try { require \"/wordpress/qa/mail/wp-regression.php\"; } catch (Throwable $e) { file_put_contents(\"/wordpress/qa-results/error.json\", json_encode([\"error\"=>$e->getMessage(),\"trace\"=>$e->getTraceAsString()])); throw $e; }"
+    }
+  ]
+}

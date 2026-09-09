@@ -19,6 +19,9 @@ if (!defined('ABSPATH')) {
 
 class EmailTranslator
 {
+    /** Reserved local markers keep credential-bearing URLs out of translation memory. */
+    private const URL_TOKEN_PATTERN = '/\{universally_email_url_[0-9]+\}/';
+
     /**
      * Hard cap per HTTP call while a customer is waiting on the request that
      * sends the email (a classic or Store API checkout).
@@ -49,16 +52,55 @@ class EmailTranslator
      */
     public function translateStrings(array $strings, string $locale): ?array
     {
+        $protected = [];
+        foreach ($strings as $string) {
+            // A literal marker cannot be distinguished from one we generated.
+            if (preg_match(self::URL_TOKEN_PATTERN, $string)) {
+                return null;
+            }
+            $urls = [];
+            /** Keep each URL in this request while translating its local marker. */
+            $text = preg_replace_callback('~https?://[^\s<>"\']+~i', static function (array $match) use (&$urls): string {
+                $token = '{universally_email_url_' . count($urls) . '}';
+                $urls[$token] = $match[0];
+                return $token;
+            }, $string);
+            if ($text === null) {
+                return null;
+            }
+            $protected[$string] = ['text' => $text, 'urls' => $urls];
+        }
+
         $data = $this->post('/v1/translate/strings', [
-            'strings'        => array_values($strings),
+            'strings'        => array_values(array_unique(array_column($protected, 'text'))),
             'targetLanguage' => $locale,
+            'tokenizeNumbers' => true,
         ], false);
 
-        if ($data === null) {
+        if ($data === null || !isset($data['translations']) || !is_array($data['translations'])) {
             return null;
         }
 
-        return $data['translations'] ?? null;
+        $translations = [];
+        foreach ($protected as $original => $item) {
+            $translated = $data['translations'][$item['text']] ?? null;
+            if (!is_string($translated)) {
+                continue;
+            }
+            preg_match_all(self::URL_TOKEN_PATTERN, $translated, $matches);
+            $actual = $matches[0];
+            $expected = array_keys($item['urls']);
+            sort($actual);
+            sort($expected);
+            // A changed, omitted, repeated or invented marker invalidates the
+            // whole response. Never send a broken payment link or a raw token.
+            if ($actual !== $expected) {
+                return null;
+            }
+            $translations[$original] = strtr($translated, $item['urls']);
+        }
+
+        return $translations;
     }
 
     /**
@@ -72,6 +114,7 @@ class EmailTranslator
             'html'           => $html,
             'targetLanguage' => $locale,
             'sourceUrl'      => $sourceUrl,
+            'tokenizeNumbers' => true,
         ], true);
 
         if ($data === null) {
@@ -86,7 +129,9 @@ class EmailTranslator
             return null;
         }
 
-        return $data['translatedHtml'] ?? null;
+        return isset($data['translatedHtml']) && is_string($data['translatedHtml'])
+            ? $data['translatedHtml']
+            : null;
     }
 
     /**
@@ -128,6 +173,10 @@ class EmailTranslator
         }
 
         $data = $response['data'] ?? [];
+
+        if (!is_array($data)) {
+            return null;
+        }
 
         if (!empty($data['metadata']['limitReached'])) {
             set_transient('universally_limit_reached', true, 15 * MINUTE_IN_SECONDS);
