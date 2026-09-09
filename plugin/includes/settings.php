@@ -348,6 +348,20 @@ return [
         ],
         [
             'type' => 'section',
+            'id' => 'email_translation_section',
+            'label' => __('Email Translation', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'id' => 'translate_emails',
+            'type' => 'toggle',
+            'label' => __('WooCommerce Emails', 'universally-language-translation-multilingual-tool'),
+            'inlineLabel' => __('Translate WooCommerce customer emails', 'universally-language-translation-multilingual-tool'),
+            'description' => __('Order confirmations and other customer emails are sent in the language the customer placed their order in. If translation fails, the email is sent in the original language.', 'universally-language-translation-multilingual-tool'),
+            'default' => false,
+            'sanitize' => 'bool',
+        ],
+        [
+            'type' => 'section',
             'id' => 'privacy_section',
             'label' => __('Privacy', 'universally-language-translation-multilingual-tool'),
         ],

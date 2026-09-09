@@ -8,7 +8,7 @@
  * Author URI: https://universally.com/
  * Text Domain: universally-language-translation-multilingual-tool
  * Requires at least: 6.0
- * Tested up to: 7.0
+ * Tested up to: 7.1
  * Requires PHP: 7.4
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -21,6 +21,8 @@ use Universally\Migration;
 use Universally\Onboarding;
 use Universally\RestApi;
 use Universally\UnifiedBuffer;
+use Universally\Mail\OrderLanguage;
+use Universally\Mail\WooCommerceEmails;
 
 if (!defined('ABSPATH')) {
     exit;
@@ -97,3 +99,5 @@ new AdminBar();
 new RestApi();
 new ActivationToken();
 new Onboarding();
+new OrderLanguage();
+new WooCommerceEmails();

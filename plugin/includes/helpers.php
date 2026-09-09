@@ -509,3 +509,35 @@ function universally_html_translate_attr(string $output): string
 
     return $output;
 }
+
+/**
+ * Whether WooCommerce customer emails should be translated into the
+ * customer's order language. Controlled by the "Email Translation" toggle
+ * in the Preferences tab. Defaults to false when never saved.
+ *
+ * @return bool
+ */
+function universally_translate_emails_enabled(): bool
+{
+    $settings = get_option('universally_settings', []);
+
+    if (!is_array($settings) || !array_key_exists('translate_emails', $settings)) {
+        return false;
+    }
+
+    return (bool) $settings['translate_emails'];
+}
+
+/**
+ * Whether a dedicated multilingual plugin that may handle email translation
+ * itself is active. When one is, Universally's email translation steps aside
+ * entirely (no hooks registered).
+ *
+ * @return bool
+ */
+function universally_has_conflicting_multilingual_plugin(): bool
+{
+    return defined('ICL_SITEPRESS_VERSION')     // WPML
+        || defined('POLYLANG_VERSION')          // Polylang
+        || class_exists('TRP_Translate_Press'); // TranslatePress
+}
