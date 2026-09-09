@@ -116,7 +116,7 @@ class Onboarding
      */
     public function recordInstallSource(): void
     {
-        // add_option keeps the first value even if two activations race.
+        // Use option creation so later activations retain the recorded value.
         add_option(self::INSTALL_SOURCE_OPTION, $this->detectInstallSource(), '', false);
     }
 
