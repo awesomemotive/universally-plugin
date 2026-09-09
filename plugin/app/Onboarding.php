@@ -54,6 +54,7 @@ class Onboarding
     /** Hidden admin page slug used as the hosted-flow return target. */
     public const CALLBACK_SLUG = 'universally-connect';
 
+    /** Register activation attribution and the hosted-connect admin flow. */
     public function __construct()
     {
         register_activation_hook(UNIVERSALLY_PLUGIN_FILE, [$this, 'recordInstallSource']);
@@ -115,11 +116,8 @@ class Onboarding
      */
     public function recordInstallSource(): void
     {
-        if (get_option(self::INSTALL_SOURCE_OPTION, '') !== '') {
-            return;
-        }
-
-        update_option(self::INSTALL_SOURCE_OPTION, $this->detectInstallSource(), false);
+        // add_option keeps the first value even if two activations race.
+        add_option(self::INSTALL_SOURCE_OPTION, $this->detectInstallSource(), '', false);
     }
 
     /**
@@ -130,6 +128,7 @@ class Onboarding
      * referer cannot. Read at connect time rather than in the activation hook
      * because the partner may write the option after our activation already ran.
      * Namespaced under the fallback so it still groups as a plugin install.
+     * Invalid saved values use the fallback to preserve the hosted contract.
      */
     private function connectSource(): string
     {
@@ -141,24 +140,47 @@ class Onboarding
             }
         }
 
-        return (string) get_option(self::INSTALL_SOURCE_OPTION, self::INSTALL_SOURCE_FALLBACK);
+        $recorded = get_option(self::INSTALL_SOURCE_OPTION, self::INSTALL_SOURCE_FALLBACK);
+        if (is_string($recorded) && preg_match('/^[a-z0-9_.-]{1,' . self::SOURCE_MAX_LEN . '}$/D', $recorded) === 1) {
+            return $recorded;
+        }
+
+        return self::INSTALL_SOURCE_FALLBACK;
     }
 
     /**
      * Best-effort provenance from the admin page that triggered the activation.
      *
-     * Values stay within the hosted flow's `source` contract (lowercase, dots and
-     * dashes, max 32 chars) so they land in acquisition reporting as-is.
-     *
-     * ponytail: referer sniffing, not a handshake. It cannot see an install done
-     * over WP-CLI or by a host's bulk provisioner, which both report the
-     * fallback. If the AM installers ever pass an explicit source param, read
-     * that here first and keep this as the fallback.
+     * Match an admin route or its partner page slug, so a domain, search term,
+     * or unrelated query parameter cannot masquerade as a partner placement.
+     * Missing provenance (including CLI installs) uses the fallback. The
+     * explicit partner option is read separately at connect time.
      */
     private function detectInstallSource(): string
     {
         $referer = wp_get_referer();
         if (!is_string($referer) || $referer === '') {
+            return self::INSTALL_SOURCE_FALLBACK;
+        }
+
+        $path = wp_parse_url($referer, PHP_URL_PATH);
+        $adminPath = wp_parse_url(admin_url(), PHP_URL_PATH);
+        if (!is_string($path) || !is_string($adminPath) || strpos($path, $adminPath) !== 0) {
+            return self::INSTALL_SOURCE_FALLBACK;
+        }
+
+        $route = substr($path, strlen($adminPath));
+        if (in_array($route, ['plugin-install.php', 'network/plugin-install.php'], true)) {
+            return 'wp-plugin.search';
+        }
+        if (in_array($route, ['plugins.php', 'network/plugins.php'], true)) {
+            return 'wp-plugin.plugins-screen';
+        }
+
+        $query = wp_parse_url($referer, PHP_URL_QUERY);
+        parse_str(is_string($query) ? $query : '', $params);
+        $page = $params['page'] ?? '';
+        if (!is_string($page)) {
             return self::INSTALL_SOURCE_FALLBACK;
         }
 
@@ -174,18 +196,9 @@ class Onboarding
         ];
 
         foreach ($installers as $needle => $source) {
-            if (strpos($referer, $needle) !== false) {
+            if (preg_match('/^' . preg_quote($needle, '/') . '(?:$|[-_])/', $page) === 1) {
                 return $source;
             }
-        }
-
-        // Plain WordPress routes, checked after the installers: an AM wizard runs
-        // its install through admin-ajax, so its referer never looks like these.
-        if (strpos($referer, 'plugin-install.php') !== false) {
-            return 'wp-plugin.search';
-        }
-        if (strpos($referer, 'plugins.php') !== false) {
-            return 'wp-plugin.plugins-screen';
         }
 
         return self::INSTALL_SOURCE_FALLBACK;
