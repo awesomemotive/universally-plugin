@@ -66,6 +66,9 @@ $intercept = static function ($preempt, array $args, string $url) use (&$request
             if ($mode === 'duplicate-token') {
                 $translated .= '{universally_email_url_0}';
             }
+            if ($mode === 'wrapped-token') {
+                $translated = preg_replace('/(\{universally_email_url_[0-9]+\})/', '{$1}', $translated);
+            }
             $data['translations'][$source] = $translated;
         }
     } else {
@@ -110,6 +113,10 @@ $mode = 'duplicate-token';
 $result = apply_filters('woocommerce_mail_callback_params', $args, $email);
 universally_qa_assert($result === $args, 'Duplicate link token must keep original email');
 $passed[] = 'duplicate token fallback';
+$mode = 'wrapped-token';
+$result = apply_filters('woocommerce_mail_callback_params', $args, $email);
+universally_qa_assert($result === $args, 'Wrapped link token must preserve original email without braces around its URL');
+$passed[] = 'wrapped token fallback';
 $mode = 'success';
 $client = new Universally\Mail\EmailTranslator();
 $first = 'Pay https://shop.example/pay/?key=first';

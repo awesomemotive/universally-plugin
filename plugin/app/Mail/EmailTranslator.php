@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
 class EmailTranslator
 {
     /** Reserved local markers keep credential-bearing URLs out of translation memory. */
-    private const URL_TOKEN_PATTERN = '/\{universally_email_url_[0-9]+\}/';
+    private const URL_TOKEN_PATTERN = '/(?<!\{)\{universally_email_url_[0-9]+\}(?!\})/';
 
     /**
      * Hard cap per HTTP call while a customer is waiting on the request that
@@ -55,7 +55,7 @@ class EmailTranslator
         $protected = [];
         foreach ($strings as $string) {
             // A literal marker cannot be distinguished from one we generated.
-            if (preg_match(self::URL_TOKEN_PATTERN, $string)) {
+            if (strpos($string, '{universally_email_url_') !== false) {
                 return null;
             }
             $urls = [];
@@ -94,7 +94,8 @@ class EmailTranslator
             sort($expected);
             // A changed, omitted, repeated or invented marker invalidates the
             // whole response. Never send a broken payment link or a raw token.
-            if ($actual !== $expected) {
+            $remaining = preg_replace(self::URL_TOKEN_PATTERN, '', $translated);
+            if ($actual !== $expected || strpos($remaining, '{universally_email_url_') !== false) {
                 return null;
             }
             $translations[$original] = strtr($translated, $item['urls']);

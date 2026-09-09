@@ -28,7 +28,7 @@ Validated on WordPress 7.1, PHP 7.4, and WooCommerce 11.1.0:
 
 - Password-reset and new-account emails are rejected even with an order object.
 - Plain-text links stay out of outbound translator payloads and are restored per
-  occurrence; missing/repeated/literal markers preserve the original email.
+  occurrence; missing/repeated/wrapped/literal markers preserve the original email.
 - Both endpoints explicitly opt into backend numeric tokenization (#290).
 - Transport errors, quota responses, and malformed data preserve the original.
 - HTML requests use a full same-site reserved email path.
