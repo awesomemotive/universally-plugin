@@ -43,3 +43,60 @@ test.describe('sticky language cookie — default (remember on)', () => {
     expect(await hasLangCookie(request)).toBe(false);
   });
 });
+
+const OFF = { 'X-Universally-Test-Remember': '0' };
+const ON = { 'X-Universally-Test-Remember': '1' };
+const FILTER_OFF = { 'X-Universally-Test-Filter': 'off' };
+
+test.describe('sticky language cookie — remember off', () => {
+  test('visiting /pt/ sets no cookie', async ({ request }) => {
+    const res = await request.get('/pt/', { headers: OFF, maxRedirects: 0 });
+    expect(res.status()).toBe(200);
+    expect(langSetCookie(res)).toBeUndefined();
+    expect(await hasLangCookie(request)).toBe(false);
+  });
+
+  test('unprefixed GET is not redirected', async ({ request }) => {
+    const res = await request.get('/', { headers: OFF, maxRedirects: 0 });
+    expect(res.status()).toBe(200);
+  });
+
+  test('a leftover cookie is cleared instead of redirecting', async ({ request }) => {
+    // Cookie planted while the feature was on (the duplicator.com scenario).
+    await request.get('/pt/', { headers: ON });
+    expect(await hasLangCookie(request)).toBe(true);
+
+    const res = await request.get('/', { headers: OFF, maxRedirects: 0 });
+    expect(res.status()).toBe(200);
+    const cleared = langSetCookie(res);
+    expect(cleared, 'expiring Set-Cookie').toBeDefined();
+    // PHP's setcookie() rewrites an empty-string value to "deleted" in the
+    // Set-Cookie header regardless of the value passed in — this is how the
+    // pre-existing clearLanguageCookie() has always cleared the cookie.
+    expect(cleared).toMatch(/^universally_lang=deleted;/);
+    expect(await hasLangCookie(request)).toBe(false);
+  });
+
+  test('?universally_switch=source still works as a fallback', async ({ request }) => {
+    const res = await request.get('/?universally_switch=source', { headers: OFF, maxRedirects: 0 });
+    expect(res.status()).toBe(302);
+    expect(res.headers()['location']).not.toContain('universally_switch');
+  });
+
+  test('explicit on setting keeps the redirect', async ({ request }) => {
+    await request.get('/pt/', { headers: ON });
+    const res = await request.get('/', { headers: ON, maxRedirects: 0 });
+    expect(res.status()).toBe(302);
+  });
+});
+
+test.describe('sticky language cookie — universally_remember_language filter', () => {
+  test('filter returning false overrides the (default on) setting', async ({ request }) => {
+    await request.get('/pt/');
+    expect(await hasLangCookie(request)).toBe(true);
+
+    const res = await request.get('/', { headers: FILTER_OFF, maxRedirects: 0 });
+    expect(res.status()).toBe(200);
+    expect(await hasLangCookie(request)).toBe(false);
+  });
+});

@@ -348,6 +348,20 @@ return [
         ],
         [
             'type' => 'section',
+            'id' => 'visitor_language_section',
+            'label' => __('Visitor Language', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'id' => 'remember_language',
+            'type' => 'toggle',
+            'label' => __('Remember visitor’s language', 'universally-language-translation-multilingual-tool'),
+            'inlineLabel' => __('Send returning visitors to the language they last viewed', 'universally-language-translation-multilingual-tool'),
+            'description' => __('When someone opens a translated page, a 30-day cookie stores that language and later visits to your original URLs redirect there. Turn this off if your pages don’t show a language switcher: without one, visitors have no way back to the original language. Turning it off also clears the cookie for visitors who already have it.', 'universally-language-translation-multilingual-tool'),
+            'default' => true,
+            'sanitize' => 'bool',
+        ],
+        [
+            'type' => 'section',
             'id' => 'seo_section',
             'label' => __('SEO', 'universally-language-translation-multilingual-tool'),
         ],
