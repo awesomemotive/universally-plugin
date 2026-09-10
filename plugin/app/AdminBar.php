@@ -92,6 +92,44 @@ class AdminBar
             'href'   => 'https://universally.com/docs/',
             'meta'   => ['target' => '_blank'],
         ]);
+
+        $this->addEnvironmentBadge($adminBar);
+    }
+
+    /**
+     * Add a pill next to the Universally node when the site is not pointed at the
+     * production services.
+     *
+     * Sibling top-level node rather than a suffix on the main node, whose title is
+     * icon-only. Links to the hidden Developer tab that owns the setting.
+     */
+    private function addEnvironmentBadge(\WP_Admin_Bar $adminBar): void
+    {
+        if (!function_exists('universally_get_environment')) {
+            return;
+        }
+
+        $environment = universally_get_environment();
+
+        $labels = [
+            'staging' => __('Staging', 'universally-language-translation-multilingual-tool'),
+            'local'   => __('Local', 'universally-language-translation-multilingual-tool'),
+            'custom'  => __('Custom', 'universally-language-translation-multilingual-tool'),
+        ];
+
+        if (!isset($labels[$environment])) {
+            return;
+        }
+
+        $adminBar->add_node([
+            'id'    => 'universally-environment',
+            'title' => '<span class="universally-adminbar-env universally-adminbar-env--'
+                . esc_attr($environment) . '">' . esc_html($labels[$environment]) . '</span>',
+            'href'  => admin_url('admin.php?page=' . UNIVERSALLY_SETTINGS_KEY . '#developer_tab'),
+            'meta'  => [
+                'title' => __('Universally is not using the production services', 'universally-language-translation-multilingual-tool'),
+            ],
+        ]);
     }
 
     private function getMenuTitle(bool $limitReached): string

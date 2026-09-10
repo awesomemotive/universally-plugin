@@ -24,17 +24,151 @@ function universally_get_api_key(): string
 }
 
 /**
+ * Preset URL sets keyed by environment id.
+ *
+ * Each entry maps the three service names ('api', 'translator', 'app') to a base
+ * URL without a trailing slash. The 'custom' environment has no preset — it reads
+ * the custom_*_url settings instead.
+ *
+ * @return array<string, array<string, string>>
+ */
+function universally_get_environment_presets(): array
+{
+    return [
+        'production' => [
+            'api' => 'https://api.universally.com',
+            'translator' => 'https://translator.universally.com',
+            'app' => 'https://app.universally.com',
+        ],
+        'staging' => [
+            'api' => 'https://api-staging.universally.com',
+            'translator' => 'https://translator-staging.universally.com',
+            'app' => 'https://app-staging.universally.com',
+        ],
+        'local' => [
+            'api' => 'http://localhost:9123',
+            'translator' => 'http://localhost:9122',
+            'app' => 'http://localhost:3000',
+        ],
+    ];
+}
+
+/**
+ * Get the current environment id: production|staging|local|custom.
+ *
+ * Reads the hidden Developer tab's 'environment' setting. Unknown or missing
+ * values fall back to 'production'. Only touches get_option — never the API.
+ *
+ * @return string
+ */
+function universally_get_environment(): string
+{
+    $settings = get_option('universally_settings', []);
+
+    if (!is_array($settings) || !isset($settings['environment'])) {
+        return 'production';
+    }
+
+    $environment = is_string($settings['environment']) ? trim($settings['environment']) : '';
+    $allowed = array_keys(universally_get_environment_presets());
+    $allowed[] = 'custom';
+
+    return in_array($environment, $allowed, true) ? $environment : 'production';
+}
+
+/**
+ * Whether the site talks to the production services.
+ *
+ * True on the default environment (nothing saved, or 'production' selected).
+ * Used to decide whether the admin bar shows an environment badge.
+ *
+ * @return bool
+ */
+function universally_is_default_environment(): bool
+{
+    return universally_get_environment() === 'production';
+}
+
+/**
+ * Resolve one service base URL (no trailing slash).
+ *
+ * Precedence: wp-config constant > environment setting (preset, or the matching
+ * custom_*_url field for the 'custom' environment) > the production default. An
+ * empty custom field falls back to that service's production URL.
+ *
+ * Only reads constants and get_option — safe to call on every request.
+ *
+ * @param string $service One of 'api', 'translator', 'app'.
+ * @return string
+ */
+function universally_resolve_service_url(string $service): string
+{
+    $presets = universally_get_environment_presets();
+    $fallback = $presets['production'][$service] ?? '';
+
+    $constants = [
+        'api' => 'UNIVERSALLY_API_URL',
+        'translator' => 'UNIVERSALLY_TRANSLATOR_URL',
+        'app' => 'UNIVERSALLY_APP_URL',
+    ];
+
+    // A wp-config constant always wins.
+    if (isset($constants[$service]) && defined($constants[$service])) {
+        $override = constant($constants[$service]);
+        $override = is_string($override) ? trim($override) : '';
+        if ($override !== '') {
+            return rtrim($override, '/');
+        }
+    }
+
+    $environment = universally_get_environment();
+
+    if ($environment === 'custom') {
+        $settings = get_option('universally_settings', []);
+        $key = 'custom_' . $service . '_url';
+        $custom = (is_array($settings) && isset($settings[$key]) && is_string($settings[$key]))
+            ? trim($settings[$key])
+            : '';
+
+        return $custom !== '' ? rtrim($custom, '/') : $fallback;
+    }
+
+    return rtrim($presets[$environment][$service] ?? $fallback, '/');
+}
+
+/**
+ * Get the Universally API base URL (no trailing slash).
+ *
+ * Resolves through the environment switcher; `define('UNIVERSALLY_API_URL', …)`
+ * in wp-config.php overrides it.
+ */
+function universally_get_api_url(): string
+{
+    return universally_resolve_service_url('api');
+}
+
+/**
+ * Get the Universally translator base URL (no trailing slash).
+ *
+ * Resolves through the environment switcher;
+ * `define('UNIVERSALLY_TRANSLATOR_URL', …)` in wp-config.php overrides it.
+ */
+function universally_get_translator_url(): string
+{
+    return universally_resolve_service_url('translator');
+}
+
+/**
  * Get the Universally app base URL (no trailing slash).
  *
- * Defaults to the production app, overridable in wp-config.php for
- * local/staging via `define('UNIVERSALLY_APP_URL', 'http://localhost:3000');`.
+ * Resolves through the environment switcher (Developer tab), overridable in
+ * wp-config.php via `define('UNIVERSALLY_APP_URL', 'http://localhost:3000');`.
  * Single source of truth — every "Dashboard"/app link should resolve through
  * this so the override only lives in one place.
  */
 function universally_get_app_url(): string
 {
-    $url = defined('UNIVERSALLY_APP_URL') ? UNIVERSALLY_APP_URL : 'https://app.universally.com';
-    return rtrim($url, '/');
+    return universally_resolve_service_url('app');
 }
 
 /**

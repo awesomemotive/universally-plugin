@@ -59,3 +59,46 @@
 #wp-admin-bar-universally-adminbar-limit-warning:hover .universally-adminbar-alert__cta {
     background: #b32d2e;
 }
+/* Environment badge — shown only when the site is not on production services. */
+#wpadminbar #wp-admin-bar-universally-environment > .ab-item {
+    padding: 0 8px !important;
+}
+
+#wpadminbar .universally-adminbar-env {
+    display: inline-block;
+    padding: 0 7px;
+    border-radius: 9px;
+    background: #6c7781;
+    color: #fff !important;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    height: 18px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+#wpadminbar .universally-adminbar-env--staging {
+    background: #d97706;
+}
+
+#wpadminbar .universally-adminbar-env--local {
+    background: #7c3aed;
+}
+
+#wpadminbar .universally-adminbar-env--custom {
+    background: #6c7781;
+}
+
+#wpadminbar #wp-admin-bar-universally-environment:hover .universally-adminbar-env--staging {
+    background: #b45309;
+}
+
+#wpadminbar #wp-admin-bar-universally-environment:hover .universally-adminbar-env--local {
+    background: #6d28d9;
+}
+
+#wpadminbar #wp-admin-bar-universally-environment:hover .universally-adminbar-env--custom {
+    background: #50575e;
+}
