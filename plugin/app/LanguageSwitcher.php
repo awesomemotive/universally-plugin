@@ -199,8 +199,10 @@ class LanguageSwitcher
 
         // Defaults applied when a setting isn't stored, so the switcher matches the
         // admin-panel preview even before anything is saved. Mirrors the schema
-        // defaults in settings.php (the range fields default to 6). Colors have no
-        // default — they stay unset and the stylesheet's var() fallback applies.
+        // defaults in settings.php (the range fields default to 6). Colors are left
+        // unset here on purpose: the stylesheet's var() fallbacks carry the same hex
+        // values as the schema defaults in settings.php, so an unsaved site renders
+        // exactly what the panel shows.
         $defaults = [
             'trigger_radius'  => '6',
             'dropdown_radius' => '6',
