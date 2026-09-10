@@ -245,6 +245,9 @@ You can reach our support team through the [Universally dashboard](https://app.u
 
 == Changelog ==
 
+= 1.0.9 =
+* Fix: The Styling tab now shows the switcher's real default colors instead of empty swatches. The front end keeps the same look; only the panel and the stylesheet fallbacks were brought into line.
+
 = 1.0.8 =
 * Improvement: A cleaner, full-screen experience when connecting your site to Universally.
 * Change: Browser auto-translation prevention is now off by default. You can turn it on anytime under Preferences, including a new option to also cover your original language.

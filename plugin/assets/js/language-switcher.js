@@ -101,16 +101,16 @@ class UniversallySwitcher extends HTMLElement {
           align-items: center;
           gap: 8px;
           padding: var(--universally-trigger-padding, 8px 12px);
-          background: var(--universally-trigger-bg, #fff);
-          border: 1px solid var(--universally-trigger-border, #ddd);
+          background: var(--universally-trigger-bg, #ffffff);
+          border: 1px solid var(--universally-trigger-border, #d1d5db);
           border-radius: var(--universally-trigger-radius, 6px);
           cursor: pointer;
           font: inherit;
-          color: var(--universally-trigger-text, #1a1a1a);
+          color: var(--universally-trigger-text, #111827);
           transition: border-color 0.15s;
           user-select: none;
         }
-        .trigger:hover { border-color: var(--universally-trigger-border-hover, #999); }
+        .trigger:hover { border-color: var(--universally-trigger-border-hover, #9ca3af); }
         .trigger:focus-visible {
           outline: 2px solid var(--universally-focus, #0073aa);
           outline-offset: 2px;
@@ -134,8 +134,8 @@ class UniversallySwitcher extends HTMLElement {
           margin: 4px 0;
           padding: 4px;
           list-style: none;
-          background: var(--universally-dropdown-bg, #fff);
-          border: 1px solid var(--universally-dropdown-border, #ddd);
+          background: var(--universally-dropdown-bg, #ffffff);
+          border: 1px solid var(--universally-dropdown-border, #d1d5db);
           border-radius: var(--universally-dropdown-radius, 6px);
           box-shadow: var(--universally-dropdown-shadow, 0 4px 12px rgba(0,0,0,0.1));
           min-width: 100%;
@@ -153,13 +153,13 @@ class UniversallySwitcher extends HTMLElement {
           align-items: center;
           gap: 8px;
           padding: 8px 10px;
-          color: var(--universally-dropdown-text, #1a1a1a);
+          color: var(--universally-dropdown-text, #111827);
           text-decoration: none;
           border-radius: 4px;
           transition: background 0.15s;
           font: inherit;
         }
-        .dropdown a:hover { background: var(--universally-dropdown-hover-bg, #f5f5f5); }
+        .dropdown a:hover { background: var(--universally-dropdown-hover-bg, #f3f4f6); }
         .dropdown a:focus-visible {
           outline: 2px solid var(--universally-focus, #0073aa);
           outline-offset: -2px;
