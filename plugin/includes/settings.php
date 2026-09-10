@@ -31,6 +31,33 @@ if ($universally_project_id !== '') {
     $universally_dashboard_url = rtrim($universally_dashboard_url, '/') . '/projects/' . $universally_project_id;
 }
 
+// Panel-wide notices, rendered above the tabs bar on every tab. Universally
+// serves translated pages under a language prefix (/es/…), which the Plain
+// permalink structure cannot express — warn instead of failing silently.
+$universally_panel_notices = [];
+if (get_option('permalink_structure') === '') {
+    $universally_panel_notices[] = [
+        'id' => 'plain_permalinks',
+        'type' => 'warning',
+        'title' => __('Pretty permalinks are required', 'universally-language-translation-multilingual-tool'),
+        'message' => __('Your site uses Plain permalinks (?p=123). Universally serves translated pages under a language prefix such as /es/, which needs pretty permalinks. Translations will not work until you switch to any other permalink structure.', 'universally-language-translation-multilingual-tool'),
+        'action' => [
+            'label' => __('Change permalink settings', 'universally-language-translation-multilingual-tool'),
+            'href' => admin_url('options-permalink.php'),
+        ],
+    ];
+}
+
+/**
+ * Filter the notices shown at the top of the settings panel
+ *
+ * Each notice is an array with `id`, `type` (warning|error|info), `message`,
+ * and optionally `title` and `action` (`label` + `href`).
+ *
+ * @param array $universally_panel_notices
+ */
+$universally_panel_notices = apply_filters('universally_panel_notices', $universally_panel_notices);
+
 return [
     'id' => 'universally_settings',
     'title' => 'Universally',
@@ -48,6 +75,8 @@ return [
             'href' => 'https://universally.com/docs/',
         ],
     ],
+    // Re-index so this always JSON-encodes as an array, even after filtering.
+    'notices' => array_values($universally_panel_notices),
     'menu' => [
         'location' => 'toplevel',
         'icon' => 'dashicons-admin-generic',

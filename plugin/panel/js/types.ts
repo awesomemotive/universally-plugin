@@ -88,6 +88,25 @@ export interface HeaderAction {
 }
 
 /**
+ * Optional call-to-action link on a panel notice.
+ */
+export interface PanelNoticeAction {
+  label: string;
+  href: string;
+}
+
+/**
+ * Panel-wide notice, rendered above the tabs bar on every tab.
+ */
+export interface PanelNotice {
+  id: string;
+  type: 'warning' | 'error' | 'info';
+  title?: string;
+  message: string;
+  action?: PanelNoticeAction;
+}
+
+/**
  * Panel configuration with flat schema.
  */
 export interface PanelConfig {
@@ -95,6 +114,7 @@ export interface PanelConfig {
   title: string;
   logoPath?: string; // Path to logo image relative to plugin (displayed instead of title)
   headerActions?: HeaderAction[]; // Action links in header right side
+  notices?: PanelNotice[]; // Panel-wide notices shown above the tabs bar
   capability?: string;
   storage?: 'single' | 'separate';
   menu?: MenuConfig;
