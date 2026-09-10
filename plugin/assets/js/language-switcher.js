@@ -208,6 +208,10 @@ class UniversallySwitcher extends HTMLElement {
   }
 
   _persistLanguageChoice(urlPrefix) {
+    // The server only honors the cookie when "Remember visitor's language" is
+    // on; writing it anyway would leave a stray cookie the server ignores.
+    if (this._config.rememberLanguage === false) return;
+
     // Empty urlPrefix means the source language: clear the cookie for instant
     // local effect. The authoritative clear happens server-side via the
     // ?universally_switch=source marker on the source link, which uses the

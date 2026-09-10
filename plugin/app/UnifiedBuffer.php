@@ -83,6 +83,15 @@ class UnifiedBuffer
                 $this->clearLanguageCookie();
                 $this->redirectToCleanUrl();
             }
+            // Remembering is off: forget any preference left over from when it was
+            // on, so already-cookied visitors stop being redirected without needing
+            // the ?universally_switch=source escape hatch.
+            if (!universally_remember_language_enabled()) {
+                if (isset($_COOKIE[self::LANG_COOKIE])) {
+                    $this->clearLanguageCookie();
+                }
+                return;
+            }
             // Otherwise honor the visitor's stored preference.
             $preferredLang = $this->getPreferredLanguageFromCookie();
             if ($preferredLang !== null) {
@@ -105,7 +114,9 @@ class UnifiedBuffer
             if ($this->isNonTranslatableRequest($pathAfterPrefix)) {
                 $this->redirectToSource($pathAfterPrefix);
             }
-            $this->setLanguageCookie($langCode);
+            if (universally_remember_language_enabled()) {
+                $this->setLanguageCookie($langCode);
+            }
             if (universally_path_is_excluded($pathAfterPrefix)) {
                 $this->redirectToSource($pathAfterPrefix);
             }
