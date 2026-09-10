@@ -11,8 +11,12 @@ if (!defined('ABSPATH')) {
 }
 
 add_filter('universally_languages', function ($languages) {
-    return [
-        [
+    // Add to the list rather than replace it: the blueprint's inline fixture
+    // seeds en/es, which lang-endpoints.spec.ts depends on. We only need pt.
+    $languages = is_array($languages) ? $languages : [];
+
+    if (empty($languages)) {
+        $languages[] = [
             'name' => 'English',
             'originalName' => 'English',
             'region' => 'US',
@@ -22,19 +26,28 @@ add_filter('universally_languages', function ($languages) {
             'urlPrefix' => '',
             'isSource' => true,
             'isDisabled' => false,
-        ],
-        [
-            'name' => 'Portuguese',
-            'originalName' => 'Português',
-            'region' => 'BR',
-            'flagUrl' => '',
-            'lang' => 'pt',
-            'variant' => 'pt-BR',
-            'urlPrefix' => 'pt',
-            'isSource' => false,
-            'isDisabled' => false,
-        ],
+        ];
+    }
+
+    foreach ($languages as $language) {
+        if (($language['urlPrefix'] ?? '') === 'pt') {
+            return $languages;
+        }
+    }
+
+    $languages[] = [
+        'name' => 'Portuguese',
+        'originalName' => 'Português',
+        'region' => 'BR',
+        'flagUrl' => '',
+        'lang' => 'pt',
+        'variant' => 'pt-BR',
+        'urlPrefix' => 'pt',
+        'isSource' => false,
+        'isDisabled' => false,
     ];
+
+    return $languages;
 });
 
 /**
