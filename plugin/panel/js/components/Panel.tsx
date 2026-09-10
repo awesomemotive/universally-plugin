@@ -73,9 +73,6 @@ export function Panel({ config, parsed, onboarding }: PanelProps) {
       </header>
 
       <div className="wp-panel__content">
-        {/* Panel-wide notices (shown on every tab) */}
-        <Notices notices={config.notices} />
-
         {/* Tabs bar with status indicator */}
         <div className={`wp-panel__tabs-bar${isScrolled ? ' is-scrolled' : ''}`}>
           <div className="wp-panel__tabs-bar-inner">
@@ -113,6 +110,8 @@ export function Panel({ config, parsed, onboarding }: PanelProps) {
 
         {/* Tab content */}
         <div className="wp-panel__tab-content">
+          {/* Panel-wide notices: sit above the first card on every tab */}
+          <Notices notices={config.notices} />
           {activeTab && (
             <Tab
               tabId={activeTab}

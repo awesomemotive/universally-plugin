@@ -734,24 +734,24 @@
 // 10. Panel Notices (site-condition warnings above the tabs bar)
 // ----------------------------------------------------------------------------
 
-// Constrained like `.wp-panel__tabs-bar-inner` / `.wp-panel__tab-content` so the
-// banner lines up with the tabs below it.
+// Rendered inside `.wp-panel__tab-content`, above the first section card, so
+// it inherits the cards' horizontal constraint. The bottom margin equals the
+// gap between cards (`.wp-panel-tab` uses --wp-panel-tab-gap).
 .wp-panel__notices {
   display: flex;
   flex-direction: column;
-  gap: var(--wp-panel-spacing-sm);
-  max-width: var(--wp-panel-max-width);
-  margin: 0 auto;
-  padding: 0 var(--wp-panel-spacing) var(--wp-panel-spacing);
+  gap: var(--wp-panel-tab-gap);
+  margin-bottom: var(--wp-panel-tab-gap);
 }
 
 .wp-panel__notice-card {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px 16px;
+  padding: var(--wp-panel-spacing);
   border-radius: var(--wp-panel-radius);
   border: 1px solid transparent;
+  box-shadow: var(--wp-panel-shadow);
 
   &--warning {
     background: var(--wp-panel-warning-light);
