@@ -141,6 +141,7 @@ class LanguageSwitcher
                     'showFlags' => $settings['show_country_flags'],
                     'showNames' => $settings['show_language_names'],
                     'flagStyle' => $settings['flag_style'],
+                    'rememberLanguage' => universally_remember_language_enabled(),
                 ],
                 'styleAttr' => $this->buildStyleAttr(),
             ]
