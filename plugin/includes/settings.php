@@ -360,5 +360,66 @@ return [
             'default' => true,
             'sanitize' => 'bool',
         ],
+        [
+            'type' => 'tab',
+            'id' => 'developer_tab',
+            'label' => __('Developer', 'universally-language-translation-multilingual-tool'),
+            // Kept out of the tabs bar and the sidebar submenu; open it with
+            // admin.php?page=universally_settings#developer_tab.
+            'hidden' => true,
+        ],
+        [
+            'type' => 'section',
+            'id' => 'environment_section',
+            'label' => __('Environment', 'universally-language-translation-multilingual-tool'),
+            'description' => __('Internal settings. Controls which Universally services this site talks to. Not shown in the panel navigation; open it via #developer_tab.', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'id' => 'environment',
+            'type' => 'select',
+            'label' => __('Environment', 'universally-language-translation-multilingual-tool'),
+            'description' => __('A wp-config constant (UNIVERSALLY_API_URL, UNIVERSALLY_TRANSLATOR_URL, UNIVERSALLY_APP_URL) always overrides this setting.', 'universally-language-translation-multilingual-tool'),
+            'options' => [
+                'production' => __('Production', 'universally-language-translation-multilingual-tool'),
+                'staging' => __('Staging', 'universally-language-translation-multilingual-tool'),
+                'local' => __('Local', 'universally-language-translation-multilingual-tool'),
+                'custom' => __('Custom', 'universally-language-translation-multilingual-tool'),
+            ],
+            'default' => 'production',
+            'sanitize' => 'key',
+        ],
+        [
+            'id' => 'custom_api_url',
+            'type' => 'text',
+            'label' => __('API URL', 'universally-language-translation-multilingual-tool'),
+            'placeholder' => 'https://api.universally.com',
+            'default' => '',
+            'sanitize' => 'url',
+            'conditions' => [
+                'environment = custom',
+            ],
+        ],
+        [
+            'id' => 'custom_translator_url',
+            'type' => 'text',
+            'label' => __('Translator URL', 'universally-language-translation-multilingual-tool'),
+            'placeholder' => 'https://translator.universally.com',
+            'default' => '',
+            'sanitize' => 'url',
+            'conditions' => [
+                'environment = custom',
+            ],
+        ],
+        [
+            'id' => 'custom_app_url',
+            'type' => 'text',
+            'label' => __('App URL', 'universally-language-translation-multilingual-tool'),
+            'placeholder' => 'https://app.universally.com',
+            'default' => '',
+            'sanitize' => 'url',
+            'conditions' => [
+                'environment = custom',
+            ],
+        ],
     ],
 ];

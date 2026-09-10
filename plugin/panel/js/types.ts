@@ -6,6 +6,10 @@ export interface TabItem {
   id: string;
   label: string;
   storage?: 'single' | 'separate';
+  capability?: string; // Required capability to view the tab's fields
+  // Keep the tab out of the tabs bar and the sidebar submenu. Still reachable
+  // by URL hash (#tabId) — used for internal/developer-only tabs.
+  hidden?: boolean;
 }
 
 /**

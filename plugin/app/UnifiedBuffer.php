@@ -47,7 +47,7 @@ class UnifiedBuffer
             return false;
         }
 
-        return (new Http(UNIVERSALLY_TRANSLATOR_URL))->post(
+        return (new Http(universally_get_translator_url()))->post(
             '/v1/translate',
             [
                 'html' => $html,
