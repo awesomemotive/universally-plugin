@@ -348,6 +348,23 @@ return [
         ],
         [
             'type' => 'section',
+            'id' => 'seo_section',
+            'label' => __('SEO', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'id' => 'hreflang_format',
+            'type' => 'select',
+            'label' => __('Hreflang Format', 'universally-language-translation-multilingual-tool'),
+            'description' => __('Region codes target one country: **fr-FR** tells search engines "French for France", which leaves out French speakers in Belgium, Canada and elsewhere. **Language only** serves your single French translation to everyone who speaks it. Pick language only if you keep one translation per language rather than one per country.', 'universally-language-translation-multilingual-tool'),
+            'options' => [
+                'region' => __('Region codes (fr-FR, pt-BR)', 'universally-language-translation-multilingual-tool'),
+                'language' => __('Language only (fr, pt)', 'universally-language-translation-multilingual-tool'),
+            ],
+            'default' => 'region',
+            'sanitize' => 'key',
+        ],
+        [
+            'type' => 'section',
             'id' => 'privacy_section',
             'label' => __('Privacy', 'universally-language-translation-multilingual-tool'),
         ],

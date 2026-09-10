@@ -246,6 +246,8 @@ You can reach our support team through the [Universally dashboard](https://app.u
 == Changelog ==
 
 = 1.0.9 =
+* New: An SEO setting under Preferences to choose your hreflang format — region codes (fr-FR, pt-BR) or language only (fr, pt). Pick language only if you keep one translation per language rather than one per country, so it reaches every speaker of that language. Region codes remain the default, so existing sites are unchanged.
+* New: Filters throughout the plugin's helper functions so developers can extend it without unhooking anything. For hreflang: `universally_hreflang_links` (add, remove or retarget alternates as a code => URL array), `universally_hreflang_code`, `universally_hreflang_format` and `universally_hreflang_tags`. For languages and URLs: `universally_languages`, `universally_switcher_urls` and `universally_language_url`. For exclusions and browser translation: `universally_site_config`, `universally_exclude_pages`, `universally_path_is_excluded` and `universally_should_emit_notranslate`. For the language switcher: `universally_switcher_config` and `universally_switcher_html`, both covering the shortcode, auto-insert and block at once.
 * Fix: feeds, sitemaps, and other non-HTML URLs under a language prefix (for example /es/feed/ or /es/sitemap.xml) now redirect to the original URL instead of serving untranslated content at a translated address.
 
 = 1.0.8 =

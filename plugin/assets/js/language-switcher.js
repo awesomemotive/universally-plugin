@@ -71,7 +71,9 @@ class UniversallySwitcher extends HTMLElement {
     };
 
     const itemsHtml = others.map(lang => {
-      const hreflang = lang.region || lang.variant || '';
+      // Resolved server-side so it honors the "Hreflang Format" setting; the
+      // region/variant chain is a fallback for configs cached before that existed.
+      const hreflang = lang.hreflang || lang.region || lang.variant || '';
       // data-lang carries the urlPrefix for target languages; an empty value
       // marks the source language so the click handler can clear the cookie.
       const dataLang = lang.isSource ? '' : (lang.urlPrefix || '');

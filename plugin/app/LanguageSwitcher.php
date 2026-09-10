@@ -166,7 +166,23 @@ class LanguageSwitcher
             $config['position'] = $settings['position'];
         }
 
-        return $config;
+        /**
+         * Filter the language switcher config before it is rendered.
+         *
+         * Shared by all three render paths — shortcode, auto-insert and block.
+         * `languages` carries the entries from universally_get_switcher_urls()
+         * (url, isCurrent, hreflang); the rest are display options. `fixed` and
+         * `position` are present only for the auto-inserted switcher.
+         *
+         * Return an empty array to render no switcher for this instance.
+         *
+         * @param array $config    The config passed to the web component.
+         * @param bool  $fixed     Whether this is the auto-inserted (fixed) switcher.
+         * @param array $overrides Per-instance overrides from the shortcode or block.
+         */
+        $config = apply_filters('universally_switcher_config', $config, $fixed, $overrides);
+
+        return (is_array($config) && !empty($config)) ? $config : null;
     }
 
     private function renderElement(array $config, array $styleOverrides = []): string
@@ -174,7 +190,20 @@ class LanguageSwitcher
         $json = wp_json_encode($config, JSON_HEX_APOS | JSON_UNESCAPED_UNICODE);
         $style = $this->buildStyleAttr($styleOverrides);
         $styleAttr = $style ? " style='" . esc_attr($style) . "'" : '';
-        return "<universally-switcher data-config='" . esc_attr($json) . "'" . $styleAttr . "></universally-switcher>";
+        $html = "<universally-switcher data-config='" . esc_attr($json) . "'" . $styleAttr . "></universally-switcher>";
+
+        /**
+         * Filter the language switcher markup.
+         *
+         * The single choke point for all three render paths — shortcode,
+         * auto-insert and block — so one callback covers every switcher on the
+         * page. Wrap it in your own markup, or return an empty string to drop
+         * it. The result is echoed as-is, so escape anything you add.
+         *
+         * @param string $html   The web component markup.
+         * @param array  $config The config it was built from.
+         */
+        return (string) apply_filters('universally_switcher_html', $html, $config);
     }
 
     private function buildStyleAttr(array $styleOverrides = []): string
