@@ -78,6 +78,10 @@
                   "separate"
                 ],
                 "description": "Storage mode for fields in this tab"
+              },
+              "hidden": {
+                "type": "boolean",
+                "description": "Keep the tab out of the tabs bar and the sidebar submenu; still reachable via the #tabId URL hash"
               }
             },
             "required": [
