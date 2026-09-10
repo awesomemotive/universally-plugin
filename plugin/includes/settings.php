@@ -356,7 +356,7 @@ return [
             'type' => 'toggle',
             'label' => __('Remember visitor’s language', 'universally-language-translation-multilingual-tool'),
             'inlineLabel' => __('Send returning visitors to the language they last viewed', 'universally-language-translation-multilingual-tool'),
-            'description' => __('When someone opens a translated page, a 30-day cookie stores that language and later visits to your original URLs redirect there. Turn this off if your pages don’t show a language switcher: without one, visitors have no way back to the original language. Turning it off also clears the cookie for visitors who already have it.', 'universally-language-translation-multilingual-tool'),
+            'description' => __('When someone opens a translated page, a 30-day cookie stores that language and later visits to your original URLs redirect there. Turn this off if your pages don’t show a language switcher: without one, visitors have no way back to the original language. Turning it off also clears the cookie the next time a visitor opens one of your original URLs.', 'universally-language-translation-multilingual-tool'),
             'default' => true,
             'sanitize' => 'bool',
         ],

@@ -495,6 +495,11 @@ function universally_remember_language_enabled(): bool
      * Return false to stop the plugin setting the universally_lang cookie and
      * redirecting unprefixed URLs to the remembered language.
      *
+     * Read during `init` at priority 1 — register this filter before then
+     * (top-level in a plugin file, in a theme's functions.php, or on
+     * `plugins_loaded`). A callback added on `init` itself runs too late for
+     * the redirect and cookie gate.
+     *
      * @param bool $enabled Whether the language cookie and redirect are active.
      */
     return (bool) apply_filters('universally_remember_language', $enabled);

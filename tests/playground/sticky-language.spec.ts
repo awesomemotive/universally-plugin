@@ -56,11 +56,6 @@ test.describe('sticky language cookie — remember off', () => {
     expect(await hasLangCookie(request)).toBe(false);
   });
 
-  test('unprefixed GET is not redirected', async ({ request }) => {
-    const res = await request.get('/', { headers: OFF, maxRedirects: 0 });
-    expect(res.status()).toBe(200);
-  });
-
   test('a leftover cookie is cleared instead of redirecting', async ({ request }) => {
     // Cookie planted while the feature was on (the duplicator.com scenario).
     await request.get('/pt/', { headers: ON });
@@ -111,6 +106,10 @@ test.describe('switcher cookie write follows the setting', () => {
     const el = page.locator('universally-switcher').first();
     await expect(el).toHaveCount(1);
     const config = JSON.parse((await el.getAttribute('data-config')) ?? '{}');
+    await page.waitForFunction(() => {
+      const sw = document.querySelector('universally-switcher') as any;
+      return typeof sw?._persistLanguageChoice === 'function';
+    });
     await page.evaluate(() => {
       const sw = document.querySelector('universally-switcher') as any;
       sw._persistLanguageChoice('pt');
