@@ -469,6 +469,43 @@ function universally_get_hreflang_format(): string
 }
 
 /**
+ * Whether to remember a visitor's language and redirect them to it.
+ *
+ * When enabled (the default, and what the plugin has always done) a visit to
+ * a translated URL stores the language in a 30-day cookie, and later requests
+ * to unprefixed URLs redirect to that language. When disabled the cookie is
+ * neither set nor honored, and a leftover cookie is expired on the next
+ * unprefixed request. Controlled by the "Remember visitor's language" toggle
+ * in the Preferences tab.
+ *
+ * @return bool
+ */
+function universally_remember_language_enabled(): bool
+{
+    $settings = get_option('universally_settings', []);
+    $enabled = true;
+
+    if (is_array($settings) && array_key_exists('remember_language', $settings)) {
+        $enabled = (bool) $settings['remember_language'];
+    }
+
+    /**
+     * Filter whether the visitor's language is remembered, overriding the setting.
+     *
+     * Return false to stop the plugin setting the universally_lang cookie and
+     * redirecting unprefixed URLs to the remembered language.
+     *
+     * Read during `init` at priority 1 — register this filter before then
+     * (top-level in a plugin file, in a theme's functions.php, or on
+     * `plugins_loaded`). A callback added on `init` itself runs too late for
+     * the redirect and cookie gate.
+     *
+     * @param bool $enabled Whether the language cookie and redirect are active.
+     */
+    return (bool) apply_filters('universally_remember_language', $enabled);
+}
+
+/**
  * Reduce a locale code to its language (and script) subtags, dropping the region.
  *
  * fr-FR → fr, pt-BR → pt, es-419 → es. Script subtags are kept and Titlecased

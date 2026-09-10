@@ -20,6 +20,7 @@ interface BlockData {
     showFlags: boolean;
     showNames: boolean;
     flagStyle: string;
+    rememberLanguage: boolean;
   };
   styleAttr: string;
 }
@@ -89,6 +90,7 @@ export default function Edit({ attributes, setAttributes }: EditProps) {
     showFlags: attributes.showFlags === '' ? settings.showFlags : attributes.showFlags === 'true',
     showNames: attributes.showNames === '' ? settings.showNames : attributes.showNames === 'true',
     flagStyle: attributes.flagStyle === '' ? settings.flagStyle : attributes.flagStyle,
+    rememberLanguage: settings.rememberLanguage,
   };
 
   const configJson = JSON.stringify(config);
