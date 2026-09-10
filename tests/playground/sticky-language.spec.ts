@@ -100,3 +100,34 @@ test.describe('sticky language cookie — universally_remember_language filter',
     expect(await hasLangCookie(request)).toBe(false);
   });
 });
+
+test.describe('switcher cookie write follows the setting', () => {
+  // The auto-inserted switcher renders on the front end whenever languages exist
+  // (default implementation is "auto"). We call the component's own method so the
+  // assertion isolates the client-side write from the server-side one.
+  async function clickThroughSwitcher(page: import('@playwright/test').Page, headers: Record<string, string>) {
+    await page.setExtraHTTPHeaders(headers);
+    await page.goto('/');
+    const el = page.locator('universally-switcher').first();
+    await expect(el).toHaveCount(1);
+    const config = JSON.parse((await el.getAttribute('data-config')) ?? '{}');
+    await page.evaluate(() => {
+      const sw = document.querySelector('universally-switcher') as any;
+      sw._persistLanguageChoice('pt');
+    });
+    const cookie = await page.evaluate(() => document.cookie);
+    return { config, cookie };
+  }
+
+  test('remember on: config says true and the click sets the cookie', async ({ page }) => {
+    const { config, cookie } = await clickThroughSwitcher(page, ON);
+    expect(config.rememberLanguage).toBe(true);
+    expect(cookie).toContain('universally_lang=pt');
+  });
+
+  test('remember off: config says false and the click sets nothing', async ({ page }) => {
+    const { config, cookie } = await clickThroughSwitcher(page, OFF);
+    expect(config.rememberLanguage).toBe(false);
+    expect(cookie).not.toContain('universally_lang');
+  });
+});

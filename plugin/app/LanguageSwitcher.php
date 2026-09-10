@@ -159,6 +159,7 @@ class LanguageSwitcher
             'showNames' => $overrides['show_names'] ?? $settings['show_language_names'],
             'showFlags' => $overrides['show_flags'] ?? $settings['show_country_flags'],
             'flagStyle' => $overrides['flag_style'] ?? $settings['flag_style'],
+            'rememberLanguage' => universally_remember_language_enabled(),
         ];
 
         if ($fixed) {
@@ -171,8 +172,10 @@ class LanguageSwitcher
          *
          * Shared by all three render paths — shortcode, auto-insert and block.
          * `languages` carries the entries from universally_get_switcher_urls()
-         * (url, isCurrent, hreflang); the rest are display options. `fixed` and
-         * `position` are present only for the auto-inserted switcher.
+         * (url, isCurrent, hreflang); `rememberLanguage` mirrors the "Remember
+         * visitor's language" setting so the component only writes its cookie
+         * when the server will honor it; the rest are display options. `fixed`
+         * and `position` are present only for the auto-inserted switcher.
          *
          * Return an empty array to render no switcher for this instance.
          *
