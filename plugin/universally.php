@@ -8,7 +8,7 @@
  * Author URI: https://universally.com/
  * Text Domain: universally-language-translation-multilingual-tool
  * Requires at least: 6.0
- * Tested up to: 7.0
+ * Tested up to: 7.1
  * Requires PHP: 7.4
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -65,14 +65,11 @@ register_activation_hook(__FILE__, function () {
 define('UNIVERSALLY_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('UNIVERSALLY_PLUGIN_URI', plugin_dir_url(__FILE__));
 
-// API endpoints
-if (!defined('UNIVERSALLY_API_URL')) {
-    define('UNIVERSALLY_API_URL', 'https://api.universally.com');
-}
-
-if (!defined('UNIVERSALLY_TRANSLATOR_URL')) {
-    define('UNIVERSALLY_TRANSLATOR_URL', 'https://translator.universally.com');
-}
+// API endpoints are resolved at call time by universally_get_api_url() /
+// universally_get_translator_url() / universally_get_app_url() (includes/helpers.php).
+// UNIVERSALLY_API_URL, UNIVERSALLY_TRANSLATOR_URL and UNIVERSALLY_APP_URL are
+// deliberately NOT defined here: an undefined constant means "use the Environment
+// setting", while a wp-config define still overrides everything.
 
 if (!defined('UNIVERSALLY_DEBUG')) {
     define('UNIVERSALLY_DEBUG', false);

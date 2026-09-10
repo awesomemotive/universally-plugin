@@ -31,6 +31,33 @@ if ($universally_project_id !== '') {
     $universally_dashboard_url = rtrim($universally_dashboard_url, '/') . '/projects/' . $universally_project_id;
 }
 
+// Panel-wide notices, rendered above the tabs bar on every tab. Universally
+// serves translated pages under a language prefix (/es/…), which the Plain
+// permalink structure cannot express — warn instead of failing silently.
+$universally_panel_notices = [];
+if (get_option('permalink_structure') === '') {
+    $universally_panel_notices[] = [
+        'id' => 'plain_permalinks',
+        'type' => 'warning',
+        'title' => __('Pretty permalinks are required', 'universally-language-translation-multilingual-tool'),
+        'message' => __('Your site uses Plain permalinks (?p=123). Universally serves translated pages under a language prefix such as /es/, which needs pretty permalinks. Translations will not work until you switch to any other permalink structure.', 'universally-language-translation-multilingual-tool'),
+        'action' => [
+            'label' => __('Change permalink settings', 'universally-language-translation-multilingual-tool'),
+            'href' => admin_url('options-permalink.php'),
+        ],
+    ];
+}
+
+/**
+ * Filter the notices shown at the top of the settings panel
+ *
+ * Each notice is an array with `id`, `type` (warning|error|info), `message`,
+ * and optionally `title` and `action` (`label` + `href`).
+ *
+ * @param array $universally_panel_notices
+ */
+$universally_panel_notices = apply_filters('universally_panel_notices', $universally_panel_notices);
+
 return [
     'id' => 'universally_settings',
     'title' => 'Universally',
@@ -48,6 +75,8 @@ return [
             'href' => 'https://universally.com/docs/',
         ],
     ],
+    // Re-index so this always JSON-encodes as an array, even after filtering.
+    'notices' => array_values($universally_panel_notices),
     'menu' => [
         'location' => 'toplevel',
         'icon' => 'dashicons-admin-generic',
@@ -348,6 +377,37 @@ return [
         ],
         [
             'type' => 'section',
+            'id' => 'visitor_language_section',
+            'label' => __('Visitor Language', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'id' => 'remember_language',
+            'type' => 'toggle',
+            'label' => __('Remember visitor’s language', 'universally-language-translation-multilingual-tool'),
+            'inlineLabel' => __('Send returning visitors to the language they last viewed', 'universally-language-translation-multilingual-tool'),
+            'description' => __('When someone opens a translated page, a 30-day cookie stores that language and later visits to your original URLs redirect there. Turn this off if your pages don’t show a language switcher: without one, visitors have no way back to the original language. Turning it off also clears the cookie the next time a visitor opens one of your original URLs.', 'universally-language-translation-multilingual-tool'),
+            'default' => true,
+            'sanitize' => 'bool',
+        ],
+        [
+            'type' => 'section',
+            'id' => 'seo_section',
+            'label' => __('SEO', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'id' => 'hreflang_format',
+            'type' => 'select',
+            'label' => __('Hreflang Format', 'universally-language-translation-multilingual-tool'),
+            'description' => __('Region codes target one country: **fr-FR** tells search engines "French for France", which leaves out French speakers in Belgium, Canada and elsewhere. **Language only** serves your single French translation to everyone who speaks it. Pick language only if you keep one translation per language rather than one per country.', 'universally-language-translation-multilingual-tool'),
+            'options' => [
+                'region' => __('Region codes (fr-FR, pt-BR)', 'universally-language-translation-multilingual-tool'),
+                'language' => __('Language only (fr, pt)', 'universally-language-translation-multilingual-tool'),
+            ],
+            'default' => 'region',
+            'sanitize' => 'key',
+        ],
+        [
+            'type' => 'section',
             'id' => 'privacy_section',
             'label' => __('Privacy', 'universally-language-translation-multilingual-tool'),
         ],
@@ -359,6 +419,67 @@ return [
             'description' => __('You can opt out at any time. [Learn more about anonymous usage tracking.](https://universally.com/docs/usage-tracking-in-wordpress/)', 'universally-language-translation-multilingual-tool'),
             'default' => true,
             'sanitize' => 'bool',
+        ],
+        [
+            'type' => 'tab',
+            'id' => 'developer_tab',
+            'label' => __('Developer', 'universally-language-translation-multilingual-tool'),
+            // Kept out of the tabs bar and the sidebar submenu; open it with
+            // admin.php?page=universally_settings#developer_tab.
+            'hidden' => true,
+        ],
+        [
+            'type' => 'section',
+            'id' => 'environment_section',
+            'label' => __('Environment', 'universally-language-translation-multilingual-tool'),
+            'description' => __('Internal settings. Controls which Universally services this site talks to. Not shown in the panel navigation; open it via #developer_tab.', 'universally-language-translation-multilingual-tool'),
+        ],
+        [
+            'id' => 'environment',
+            'type' => 'select',
+            'label' => __('Environment', 'universally-language-translation-multilingual-tool'),
+            'description' => __('A wp-config constant (UNIVERSALLY_API_URL, UNIVERSALLY_TRANSLATOR_URL, UNIVERSALLY_APP_URL) always overrides this setting.', 'universally-language-translation-multilingual-tool'),
+            'options' => [
+                'production' => __('Production', 'universally-language-translation-multilingual-tool'),
+                'staging' => __('Staging', 'universally-language-translation-multilingual-tool'),
+                'local' => __('Local', 'universally-language-translation-multilingual-tool'),
+                'custom' => __('Custom', 'universally-language-translation-multilingual-tool'),
+            ],
+            'default' => 'production',
+            'sanitize' => 'key',
+        ],
+        [
+            'id' => 'custom_api_url',
+            'type' => 'text',
+            'label' => __('API URL', 'universally-language-translation-multilingual-tool'),
+            'placeholder' => 'https://api.universally.com',
+            'default' => '',
+            'sanitize' => 'url',
+            'conditions' => [
+                'environment = custom',
+            ],
+        ],
+        [
+            'id' => 'custom_translator_url',
+            'type' => 'text',
+            'label' => __('Translator URL', 'universally-language-translation-multilingual-tool'),
+            'placeholder' => 'https://translator.universally.com',
+            'default' => '',
+            'sanitize' => 'url',
+            'conditions' => [
+                'environment = custom',
+            ],
+        ],
+        [
+            'id' => 'custom_app_url',
+            'type' => 'text',
+            'label' => __('App URL', 'universally-language-translation-multilingual-tool'),
+            'placeholder' => 'https://app.universally.com',
+            'default' => '',
+            'sanitize' => 'url',
+            'conditions' => [
+                'environment = custom',
+            ],
         ],
     ],
 ];

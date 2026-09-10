@@ -24,17 +24,151 @@ function universally_get_api_key(): string
 }
 
 /**
+ * Preset URL sets keyed by environment id.
+ *
+ * Each entry maps the three service names ('api', 'translator', 'app') to a base
+ * URL without a trailing slash. The 'custom' environment has no preset — it reads
+ * the custom_*_url settings instead.
+ *
+ * @return array<string, array<string, string>>
+ */
+function universally_get_environment_presets(): array
+{
+    return [
+        'production' => [
+            'api' => 'https://api.universally.com',
+            'translator' => 'https://translator.universally.com',
+            'app' => 'https://app.universally.com',
+        ],
+        'staging' => [
+            'api' => 'https://api-staging.universally.com',
+            'translator' => 'https://translator-staging.universally.com',
+            'app' => 'https://app-staging.universally.com',
+        ],
+        'local' => [
+            'api' => 'http://localhost:9123',
+            'translator' => 'http://localhost:9122',
+            'app' => 'http://localhost:3000',
+        ],
+    ];
+}
+
+/**
+ * Get the current environment id: production|staging|local|custom.
+ *
+ * Reads the hidden Developer tab's 'environment' setting. Unknown or missing
+ * values fall back to 'production'. Only touches get_option — never the API.
+ *
+ * @return string
+ */
+function universally_get_environment(): string
+{
+    $settings = get_option('universally_settings', []);
+
+    if (!is_array($settings) || !isset($settings['environment'])) {
+        return 'production';
+    }
+
+    $environment = is_string($settings['environment']) ? trim($settings['environment']) : '';
+    $allowed = array_keys(universally_get_environment_presets());
+    $allowed[] = 'custom';
+
+    return in_array($environment, $allowed, true) ? $environment : 'production';
+}
+
+/**
+ * Whether the site talks to the production services.
+ *
+ * True on the default environment (nothing saved, or 'production' selected).
+ * Used to decide whether the admin bar shows an environment badge.
+ *
+ * @return bool
+ */
+function universally_is_default_environment(): bool
+{
+    return universally_get_environment() === 'production';
+}
+
+/**
+ * Resolve one service base URL (no trailing slash).
+ *
+ * Precedence: wp-config constant > environment setting (preset, or the matching
+ * custom_*_url field for the 'custom' environment) > the production default. An
+ * empty custom field falls back to that service's production URL.
+ *
+ * Only reads constants and get_option — safe to call on every request.
+ *
+ * @param string $service One of 'api', 'translator', 'app'.
+ * @return string
+ */
+function universally_resolve_service_url(string $service): string
+{
+    $presets = universally_get_environment_presets();
+    $fallback = $presets['production'][$service] ?? '';
+
+    $constants = [
+        'api' => 'UNIVERSALLY_API_URL',
+        'translator' => 'UNIVERSALLY_TRANSLATOR_URL',
+        'app' => 'UNIVERSALLY_APP_URL',
+    ];
+
+    // A wp-config constant always wins.
+    if (isset($constants[$service]) && defined($constants[$service])) {
+        $override = constant($constants[$service]);
+        $override = is_string($override) ? trim($override) : '';
+        if ($override !== '') {
+            return rtrim($override, '/');
+        }
+    }
+
+    $environment = universally_get_environment();
+
+    if ($environment === 'custom') {
+        $settings = get_option('universally_settings', []);
+        $key = 'custom_' . $service . '_url';
+        $custom = (is_array($settings) && isset($settings[$key]) && is_string($settings[$key]))
+            ? trim($settings[$key])
+            : '';
+
+        return $custom !== '' ? rtrim($custom, '/') : $fallback;
+    }
+
+    return rtrim($presets[$environment][$service] ?? $fallback, '/');
+}
+
+/**
+ * Get the Universally API base URL (no trailing slash).
+ *
+ * Resolves through the environment switcher; `define('UNIVERSALLY_API_URL', …)`
+ * in wp-config.php overrides it.
+ */
+function universally_get_api_url(): string
+{
+    return universally_resolve_service_url('api');
+}
+
+/**
+ * Get the Universally translator base URL (no trailing slash).
+ *
+ * Resolves through the environment switcher;
+ * `define('UNIVERSALLY_TRANSLATOR_URL', …)` in wp-config.php overrides it.
+ */
+function universally_get_translator_url(): string
+{
+    return universally_resolve_service_url('translator');
+}
+
+/**
  * Get the Universally app base URL (no trailing slash).
  *
- * Defaults to the production app, overridable in wp-config.php for
- * local/staging via `define('UNIVERSALLY_APP_URL', 'http://localhost:3000');`.
+ * Resolves through the environment switcher (Developer tab), overridable in
+ * wp-config.php via `define('UNIVERSALLY_APP_URL', 'http://localhost:3000');`.
  * Single source of truth — every "Dashboard"/app link should resolve through
  * this so the override only lives in one place.
  */
 function universally_get_app_url(): string
 {
-    $url = defined('UNIVERSALLY_APP_URL') ? UNIVERSALLY_APP_URL : 'https://app.universally.com';
-    return rtrim($url, '/');
+    return universally_resolve_service_url('app');
 }
 
 /**
@@ -142,7 +276,22 @@ function universally_get_all_languages($forceRefresh = false): array
         set_transient($cacheKey, $languages, 15 * MINUTE_IN_SECONDS);
     }
 
-    return $languages;
+    /**
+     * Filter the site's language set (source + targets).
+     *
+     * Applied after the cache read, so filtered values are never persisted.
+     * Handle with care: UnifiedBuffer resolves a URL prefix to a translation
+     * locale through this list, so dropping an entry stops that language being
+     * translated, not merely displayed. To change only what visitors see,
+     * filter universally_switcher_urls instead.
+     *
+     * @param array $languages    Each with name, originalName, region, flagUrl,
+     *                            lang, variant, urlPrefix, isSource, isDisabled.
+     * @param bool  $forceRefresh Whether the cache was bypassed.
+     */
+    $languages = apply_filters('universally_languages', $languages, $forceRefresh);
+
+    return is_array($languages) ? $languages : [];
 }
 
 /**
@@ -191,12 +340,34 @@ function universally_get_site_config(bool $forceRefresh = false): array
         set_transient($cacheKey, $config, 15 * MINUTE_IN_SECONDS);
     }
 
+    /**
+     * Filter the site config fetched from the API (excludePages, siteId, …).
+     *
+     * Applied after the cache read, so filtered values are never persisted.
+     *
+     * @param array $config
+     */
+    $config = apply_filters('universally_site_config', is_array($config) ? $config : []);
+
     return is_array($config) ? $config : [];
 }
 
 function universally_get_exclude_pages(bool $forceRefresh = false): array
 {
-    return universally_get_site_config($forceRefresh)['excludePages'] ?? [];
+    $pages = universally_get_site_config($forceRefresh)['excludePages'] ?? [];
+
+    /**
+     * Filter the exclude-pages patterns.
+     *
+     * Each pattern is an exact path ("/checkout/") or a trailing wildcard
+     * ("/admin/*"). Lets you keep pages untranslated in code rather than
+     * maintaining the list in the dashboard.
+     *
+     * @param array $pages
+     */
+    $pages = apply_filters('universally_exclude_pages', is_array($pages) ? $pages : []);
+
+    return is_array($pages) ? $pages : [];
 }
 
 /**
@@ -227,16 +398,13 @@ function universally_get_site_id(): string
 function universally_path_is_excluded(string $path): bool
 {
     $excludePages = universally_get_exclude_pages();
-
-    if (empty($excludePages)) {
-        return false;
-    }
+    $excluded = false;
 
     $normalized = '/' . ltrim($path, '/');
     $normalized = $normalized === '/' ? '/' : rtrim($normalized, '/');
 
     foreach ($excludePages as $pattern) {
-        $p = trim($pattern);
+        $p = trim((string) $pattern);
         if ($p === '') {
             continue;
         }
@@ -244,16 +412,28 @@ function universally_path_is_excluded(string $path): bool
         if (substr($p, -2) === '/*') {
             $prefix = rtrim(substr($p, 0, -2), '/');
             if ($normalized === $prefix || strpos($normalized, $prefix . '/') === 0) {
-                return true;
+                $excluded = true;
+                break;
             }
         } else {
             if ($normalized === rtrim($p, '/')) {
-                return true;
+                $excluded = true;
+                break;
             }
         }
     }
 
-    return false;
+    /**
+     * Filter whether a path is excluded from translation.
+     *
+     * The final verdict, so it runs even when the pattern list is empty —
+     * unlike universally_exclude_pages, which only reshapes the patterns.
+     *
+     * @param bool   $excluded   Whether the patterns matched.
+     * @param string $normalized The path, normalized and prefix-stripped.
+     * @param array  $patterns   The exclude patterns that were checked.
+     */
+    return (bool) apply_filters('universally_path_is_excluded', $excluded, $normalized, $excludePages);
 }
 
 /**
@@ -297,11 +477,25 @@ function universally_get_switcher_urls(): array
         }
     }
 
-    // Add URL and isCurrent to each language
-    foreach ($languages as &$lang) {
+    // Resolved up front: collision handling needs to see the whole set at once.
+    $hreflangCodes = universally_resolve_hreflang_codes($languages);
+
+    // Add URL, isCurrent and hreflang to each language
+    foreach ($languages as $key => &$lang) {
         if (!is_array($lang)) {
             continue;
         }
+
+        /**
+         * Filter the hreflang code emitted for a single language.
+         *
+         * Applies to both the wp_head hreflang tags and the language switcher's
+         * link attributes, so the whole plugin speaks one format.
+         *
+         * @param string $code The resolved code (e.g. "pt-BR" or "pt").
+         * @param array  $lang The language entry it was resolved from.
+         */
+        $lang['hreflang'] = apply_filters('universally_hreflang_code', $hreflangCodes[$key] ?? '', $lang);
 
         $urlPrefix = $lang['urlPrefix'] ?? '';
 
@@ -312,9 +506,36 @@ function universally_get_switcher_urls(): array
             $lang['url'] = $homeUrl . '/' . $urlPrefix . $basePath;
             $lang['isCurrent'] = ($currentLang === $urlPrefix);
         }
-    }
 
-    return $languages;
+        if (isset($lang['url'])) {
+            /**
+             * Filter the URL for a single language.
+             *
+             * For URL layouts the plugin doesn't build itself — a per-language
+             * subdomain, or a translated slug.
+             *
+             * @param string $url      The path-prefixed URL.
+             * @param array  $lang     The language entry.
+             * @param string $basePath Current path, language prefix stripped.
+             */
+            $lang['url'] = (string) apply_filters('universally_language_url', $lang['url'], $lang, $basePath);
+        }
+    }
+    unset($lang);
+
+    /**
+     * Filter the language set with URLs resolved for the current request.
+     *
+     * The canonical list behind both the language switcher and the hreflang
+     * tags — the place to hide a language from visitors, reorder the switcher,
+     * or hand the set to another plugin. Unlike universally_languages, changes
+     * here don't affect which languages get translated.
+     *
+     * @param array $languages Each with url, isCurrent and hreflang added.
+     */
+    $languages = apply_filters('universally_switcher_urls', $languages);
+
+    return is_array($languages) ? $languages : [];
 }
 
 /**
@@ -356,55 +577,244 @@ function universally_switcher(array $args = [])
 }
 
 /**
+ * Which hreflang code format to emit.
+ *
+ * `region` (the default, and what the plugin has always emitted) keeps the
+ * region-qualified code the API reports: fr-FR, pt-BR. `language` drops the
+ * region so a single translation serves every speaker of that language: fr, pt.
+ * Controlled by the "Hreflang Format" setting in the Preferences tab.
+ *
+ * @return string 'region' or 'language'
+ */
+function universally_get_hreflang_format(): string
+{
+    $settings = get_option('universally_settings', []);
+    $format = is_array($settings) ? ($settings['hreflang_format'] ?? 'region') : 'region';
+
+    /**
+     * Filter the hreflang code format, overriding the setting.
+     *
+     * @param string $format Either 'region' or 'language'. Anything else
+     *                       falls back to 'region'.
+     */
+    $format = apply_filters('universally_hreflang_format', $format);
+
+    return $format === 'language' ? 'language' : 'region';
+}
+
+/**
+ * Whether to remember a visitor's language and redirect them to it.
+ *
+ * When enabled (the default, and what the plugin has always done) a visit to
+ * a translated URL stores the language in a 30-day cookie, and later requests
+ * to unprefixed URLs redirect to that language. When disabled the cookie is
+ * neither set nor honored, and a leftover cookie is expired on the next
+ * unprefixed request. Controlled by the "Remember visitor's language" toggle
+ * in the Preferences tab.
+ *
+ * @return bool
+ */
+function universally_remember_language_enabled(): bool
+{
+    $settings = get_option('universally_settings', []);
+    $enabled = true;
+
+    if (is_array($settings) && array_key_exists('remember_language', $settings)) {
+        $enabled = (bool) $settings['remember_language'];
+    }
+
+    /**
+     * Filter whether the visitor's language is remembered, overriding the setting.
+     *
+     * Return false to stop the plugin setting the universally_lang cookie and
+     * redirecting unprefixed URLs to the remembered language.
+     *
+     * Read during `init` at priority 1 — register this filter before then
+     * (top-level in a plugin file, in a theme's functions.php, or on
+     * `plugins_loaded`). A callback added on `init` itself runs too late for
+     * the redirect and cookie gate.
+     *
+     * @param bool $enabled Whether the language cookie and redirect are active.
+     */
+    return (bool) apply_filters('universally_remember_language', $enabled);
+}
+
+/**
+ * Reduce a locale code to its language (and script) subtags, dropping the region.
+ *
+ * fr-FR → fr, pt-BR → pt, es-419 → es. Script subtags are kept and Titlecased
+ * (zh-hans → zh-Hans) because Simplified and Traditional Chinese are distinct
+ * written languages with distinct hreflang values — collapsing both to `zh`
+ * would serve the wrong script to half the audience. Per BCP 47 a 4-alpha
+ * subtag is a script, while 2-alpha and 3-digit subtags are regions.
+ *
+ * @param string $code Locale code (e.g. "pt-BR").
+ * @return string Language-only code (e.g. "pt").
+ */
+function universally_strip_hreflang_region(string $code): string
+{
+    $parts = explode('-', $code);
+    $result = [strtolower(array_shift($parts))];
+
+    foreach ($parts as $part) {
+        if (strlen($part) === 4 && ctype_alpha($part)) {
+            $result[] = ucfirst(strtolower($part));
+        }
+    }
+
+    return implode('-', $result);
+}
+
+/**
+ * Resolve the hreflang code for each language in the set.
+ *
+ * Keyed by the same keys as $languages. In `language` format two locales can
+ * reduce to the same code (fr-FR and fr-CA both → fr), which would emit
+ * duplicate hreflang values — invalid markup that search engines discard.
+ * When that happens the whole colliding group keeps its full region code, so
+ * no language drops out of the alternates set.
+ *
+ * @param array $languages Languages from universally_get_all_languages().
+ * @return array Map of language key → hreflang code.
+ */
+function universally_resolve_hreflang_codes(array $languages): array
+{
+    $base = [];
+
+    foreach ($languages as $key => $lang) {
+        if (!is_array($lang)) {
+            continue;
+        }
+
+        // Region first, variant as fallback — the plugin's original behavior.
+        $code = !empty($lang['region']) ? $lang['region'] : ($lang['variant'] ?? '');
+
+        if ($code !== '') {
+            $base[$key] = $code;
+        }
+    }
+
+    if (universally_get_hreflang_format() !== 'language') {
+        return $base;
+    }
+
+    $reduced = array_map('universally_strip_hreflang_region', $base);
+    $counts = array_count_values($reduced);
+
+    foreach ($reduced as $key => $code) {
+        if ($counts[$code] > 1) {
+            $reduced[$key] = $base[$key];
+        }
+    }
+
+    return $reduced;
+}
+
+/**
+ * Build the hreflang alternates as a code => URL map.
+ *
+ * The map is keyed by hreflang code, so duplicates collapse rather than
+ * producing the conflicting tag pairs search engines discard. x-default is
+ * appended last, pointing at the source language.
+ *
+ * @return array Map of hreflang code => absolute URL.
+ */
+function universally_get_hreflang_links(): array
+{
+    $languages = universally_get_switcher_urls();
+    $links = [];
+    $sourceUrl = '';
+
+    foreach ($languages as $lang) {
+        if (!is_array($lang) || empty($lang['url'])) {
+            continue;
+        }
+
+        // Resolved in universally_get_switcher_urls(), honoring the
+        // "Hreflang Format" setting and the universally_hreflang_code filter.
+        $code = $lang['hreflang'] ?? '';
+
+        if ($code === '') {
+            continue;
+        }
+
+        $links[$code] = $lang['url'];
+
+        // x-default target — captured here so it inherits the same guards.
+        if (!empty($lang['isSource'])) {
+            $sourceUrl = $lang['url'];
+        }
+    }
+
+    if ($sourceUrl !== '') {
+        $links['x-default'] = $sourceUrl;
+    }
+
+    /**
+     * Filter the hreflang alternates before they are rendered.
+     *
+     * Keys are hreflang codes, values absolute URLs. Add, remove or retarget
+     * entries without touching markup — escaping is applied afterwards, so
+     * return plain strings. Return an empty array to emit nothing.
+     *
+     * @param array $links     Map of hreflang code => URL.
+     * @param array $languages Languages with url, isCurrent and hreflang set.
+     */
+    $links = apply_filters('universally_hreflang_links', $links, $languages);
+
+    if (!is_array($links)) {
+        return [];
+    }
+
+    // Filters are third-party code: drop anything unrenderable rather than
+    // emitting a malformed tag.
+    $clean = [];
+    foreach ($links as $code => $url) {
+        $code = trim((string) $code);
+        $url = is_scalar($url) ? trim((string) $url) : '';
+
+        if ($code !== '' && $url !== '') {
+            $clean[$code] = $url;
+        }
+    }
+
+    return $clean;
+}
+
+/**
  * Get hreflang tags HTML
  *
  * @return string HTML markup for hreflang tags
  */
 function universally_get_hreflang_tags(): string
 {
-    $languages = universally_get_switcher_urls();
+    $links = universally_get_hreflang_links();
 
-    if (empty($languages)) {
+    if (empty($links)) {
         return '';
     }
 
     $output = "\n<!-- Universally hreflang tags -->\n";
-    $sourceUrl = '';
 
-    // Generate hreflang tags for all languages
-    foreach ($languages as $lang) {
-        if (!is_array($lang) || empty($lang['url'])) {
-            continue;
-        }
-
-        // Use region for hreflang (or variant as fallback)
-        $hreflang = !empty($lang['region']) ? $lang['region'] : $lang['variant'] ?? '';
-
-        if (empty($hreflang)) {
-            continue;
-        }
-
+    foreach ($links as $code => $url) {
         $output .= sprintf(
             '<link rel="alternate" hreflang="%s" href="%s" />' . "\n",
-            esc_attr($hreflang),
-            esc_url($lang['url'])
-        );
-
-        // Store source URL for x-default
-        if (isset($lang['isSource']) && $lang['isSource'] === true) {
-            $sourceUrl = $lang['url'];
-        }
-    }
-
-    // Add x-default pointing to source language
-    if (!empty($sourceUrl)) {
-        $output .= sprintf(
-            '<link rel="alternate" hreflang="x-default" href="%s" />' . "\n",
-            esc_url($sourceUrl)
+            esc_attr($code),
+            esc_url($url)
         );
     }
 
-    return $output;
+    /**
+     * Filter the complete hreflang tag markup before it is printed.
+     *
+     * Prefer the universally_hreflang_links filter for adding or removing
+     * alternates. Use this one to replace the markup wholesale, or return an
+     * empty string to suppress it — no need to remove the wp_head action.
+     *
+     * @param string $output The full markup, already escaped.
+     * @param array  $links  Map of hreflang code => URL it was rendered from.
+     */
+    return apply_filters('universally_hreflang_tags', $output, $links);
 }
 
 /**
@@ -469,14 +879,23 @@ function universally_prevent_browser_translation_on_source_enabled(): bool
 function universally_should_emit_notranslate(): bool
 {
     if (!universally_prevent_browser_translation_enabled()) {
-        return false;
+        $should = false;
+    } elseif (universally_is_translated_page()) {
+        $should = true;
+    } else {
+        $should = universally_prevent_browser_translation_on_source_enabled();
     }
 
-    if (universally_is_translated_page()) {
-        return true;
-    }
-
-    return universally_prevent_browser_translation_on_source_enabled();
+    /**
+     * Filter whether the notranslate tags are emitted for this request.
+     *
+     * The single verdict behind both the meta tag and the translate="no"
+     * attribute, so one filter covers both — useful to exempt a landing page,
+     * or to opt in per template without touching the settings.
+     *
+     * @param bool $should
+     */
+    return (bool) apply_filters('universally_should_emit_notranslate', $should);
 }
 
 /**
@@ -508,4 +927,106 @@ function universally_html_translate_attr(string $output): string
     }
 
     return $output;
+}
+
+/**
+ * Whether a path (already stripped of any language prefix) points at an
+ * endpoint the translator can never process: WordPress system endpoints,
+ * feeds (any of WP's feed slugs), or known non-HTML files (sitemap.xml,
+ * robots.txt, favicon.ico, …). HTML-like extensions (.html, .htm, .php) are
+ * intentionally NOT matched so custom permalink structures keep translating.
+ *
+ * Requests to such paths under a /{lang}/ prefix are 301-redirected to the
+ * source URL instead of serving untranslated content at a translated URL.
+ *
+ * @param string $path URL path, e.g. "/feed/" or "/wp-sitemap.xml".
+ * @return bool
+ */
+function universally_path_is_non_translatable(string $path): bool
+{
+    // WordPress registers five feed slugs ($wp_rewrite->feeds), valid at the
+    // root, under /comments/, and after any permalink. All are reserved, so a
+    // real page can never own one of these segments.
+    $feedSegment = '(^|/)(feed|rdf|rss|rss2|atom)(/|$)';
+
+    // Known non-HTML file extensions. Deliberately an allowlist: a catch-all
+    // "any dotted suffix" would also match .html/.htm/.php permalink
+    // structures (/%postname%.html) and 301 every translated page back to
+    // the source language.
+    $fileExtension = '\.(xml|xsl|xslt|gz|txt|json|webmanifest|ico|rss|atom|rdf|kml'
+        . '|css|js|map|png|jpe?g|gif|svg|webp|avif|bmp|pdf|woff2?|ttf|otf|eot'
+        . '|mp3|mp4|webm|ogg|zip)$';
+
+    $isNonTranslatable = (bool) (
+        preg_match('#^/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json|wp-cron\.php|wp-trackback\.php|wp-comments-post\.php|xmlrpc\.php)(/|$)#', $path)
+        || preg_match('#' . $feedSegment . '#', $path)
+        || preg_match('#' . $fileExtension . '#i', $path)
+    );
+
+    /**
+     * Filter whether a path is excluded from translated routing.
+     *
+     * @param bool   $isNonTranslatable Default classification.
+     * @param string $path              The URL path being classified.
+     */
+    return (bool) apply_filters('universally_path_is_non_translatable', $isNonTranslatable, $path);
+}
+
+/**
+ * Resolve a URL language code (e.g. "es") to its locale variant (e.g. "es-MX").
+ *
+ * @param string $urlCode Lowercase URL prefix code.
+ * @return string|false Locale variant, or false when the code is not an
+ *                      enabled target language.
+ */
+function universally_resolve_url_code_to_locale(string $urlCode)
+{
+    $allLanguages = universally_get_all_languages();
+
+    if (!is_array($allLanguages) || empty($allLanguages)) {
+        return false;
+    }
+
+    foreach ($allLanguages as $language) {
+        if (isset($language['urlPrefix']) && $language['urlPrefix'] === $urlCode && empty($language['isDisabled'])) {
+            return $language['variant'] ?? false;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Prefix a same-origin URL with /{langCode}/. Returns the URL unchanged when
+ * it points at another host, hits a WordPress system path, or already carries
+ * a valid language prefix.
+ */
+function universally_prefix_url_with_language(string $url, string $langCode): string
+{
+    $parsed = wp_parse_url($url);
+    $path = $parsed['path'] ?? '/';
+
+    $siteHost = wp_parse_url(home_url(), PHP_URL_HOST);
+    if (!empty($parsed['host']) && $parsed['host'] !== $siteHost) {
+        return $url;
+    }
+
+    if (preg_match('/^\/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json)/', $path)) {
+        return $url;
+    }
+
+    $firstSegment = strtolower(explode('/', trim($path, '/'))[0] ?? '');
+    if ($firstSegment !== '' && universally_resolve_url_code_to_locale($firstSegment) !== false) {
+        return $url;
+    }
+
+    $newPath = '/' . $langCode . $path;
+    $query = !empty($parsed['query']) ? '?' . $parsed['query'] : '';
+
+    if (!empty($parsed['host'])) {
+        $scheme = $parsed['scheme'] ?? 'https';
+        return $scheme . '://' . $parsed['host'] . $newPath . $query;
+    }
+
+    return $newPath . $query;
 }

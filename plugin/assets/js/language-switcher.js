@@ -71,7 +71,9 @@ class UniversallySwitcher extends HTMLElement {
     };
 
     const itemsHtml = others.map(lang => {
-      const hreflang = lang.region || lang.variant || '';
+      // Resolved server-side so it honors the "Hreflang Format" setting; the
+      // region/variant chain is a fallback for configs cached before that existed.
+      const hreflang = lang.hreflang || lang.region || lang.variant || '';
       // data-lang carries the urlPrefix for target languages; an empty value
       // marks the source language so the click handler can clear the cookie.
       const dataLang = lang.isSource ? '' : (lang.urlPrefix || '');
@@ -206,6 +208,10 @@ class UniversallySwitcher extends HTMLElement {
   }
 
   _persistLanguageChoice(urlPrefix) {
+    // The server only honors the cookie when "Remember visitor's language" is
+    // on; writing it anyway would leave a stray cookie the server ignores.
+    if (this._config.rememberLanguage === false) return;
+
     // Empty urlPrefix means the source language: clear the cookie for instant
     // local effect. The authoritative clear happens server-side via the
     // ?universally_switch=source marker on the source link, which uses the

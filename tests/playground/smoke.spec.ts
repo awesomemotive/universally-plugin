@@ -3,7 +3,7 @@ import { test, expect, type Page, type ConsoleMessage } from '@playwright/test';
 const SLUG = 'universally-language-translation-multilingual-tool';
 const PANEL_PAGE = '/wp-admin/admin.php?page=universally_settings';
 
-const TABS = ['general_tab', 'language_switcher_tab', 'styling_tab'] as const;
+const TABS = ['general_tab', 'language_switcher_tab', 'styling_tab', 'settings_tab'] as const;
 
 const FATAL_NEEDLES = [
   'There has been a critical error',

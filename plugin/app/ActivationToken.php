@@ -71,7 +71,7 @@ class ActivationToken
             ], 200);
         }
 
-        $response = (new Http(UNIVERSALLY_API_URL))->post('/connect/activate', [
+        $response = (new Http(universally_get_api_url()))->post('/connect/activate', [
             'activation_token' => $token,
         ]);
 
