@@ -7,6 +7,7 @@ import { useTabContent } from '../hooks/useTabContent';
 import { useTabErrors } from '../hooks/useTabErrors';
 import { useUnsavedChangesWarning } from '../hooks/useUnsavedChangesWarning';
 import { Tab } from './Tab';
+import { Notices } from './Notices';
 import { Onboarding } from './Onboarding';
 
 interface PanelProps {
@@ -72,6 +73,9 @@ export function Panel({ config, parsed, onboarding }: PanelProps) {
       </header>
 
       <div className="wp-panel__content">
+        {/* Panel-wide notices (shown on every tab) */}
+        <Notices notices={config.notices} />
+
         {/* Tabs bar with status indicator */}
         <div className={`wp-panel__tabs-bar${isScrolled ? ' is-scrolled' : ''}`}>
           <div className="wp-panel__tabs-bar-inner">
