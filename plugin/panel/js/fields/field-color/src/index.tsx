@@ -23,6 +23,7 @@ interface Props {
 
 const palettes: Record<string, ColorOption[]> = {
   background: [
+    { name: 'Transparent', slug: 'transparent', color: 'transparent' },
     { name: 'White', slug: 'white', color: '#ffffff' },
     { name: 'Snow', slug: 'snow', color: '#f9fafb' },
     { name: 'Light Gray', slug: 'light-gray', color: '#f3f4f6' },
