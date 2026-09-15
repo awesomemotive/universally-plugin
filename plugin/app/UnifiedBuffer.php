@@ -18,6 +18,7 @@ class UnifiedBuffer
 {
     private const LANG_COOKIE = 'universally_lang';
     private const SWITCH_PARAM = 'universally_switch';
+    private const SOURCE_COOKIE_VALUE = 'source';
 
     public function __construct()
     {
@@ -75,20 +76,25 @@ class UnifiedBuffer
         } elseif ($detected === false) {
             // GET without a URL prefix. An explicit ?universally_switch=source marker
             // (added by the switcher to the source-language link) means the visitor
-            // opted back into the source language: clear the stored preference with
-            // the same cookie attributes used to set it, then redirect to the clean
+            // opted back into the source language: record the opt-out with the same
+            // cookie attributes used to set a language, then redirect to the clean
             // URL. Handled server-side so it works even when the switcher's click
             // handler doesn't run (new tab, prefetch, cookie path/domain mismatch).
             if ($this->isSourceSwitchRequest()) {
-                $this->clearLanguageCookie();
+                $this->setSourceCookie();
                 $this->redirectToCleanUrl();
             }
-            // Remembering is off: forget any preference left over from when it was
-            // on, so already-cookied visitors stop being redirected without needing
-            // the ?universally_switch=source escape hatch.
+            // Remembering is off: forget any language preference left over from when
+            // it was on, so already-cookied visitors stop being redirected without
+            // needing the ?universally_switch=source escape hatch. A 'source' cookie
+            // is not such a leftover — it is the visitor's explicit opt-out, shared
+            // with the hosted runtime script, and must survive.
             if (!universally_remember_language_enabled()) {
                 if (isset($_COOKIE[self::LANG_COOKIE])) {
-                    $this->clearLanguageCookie();
+                    $stored = sanitize_key(wp_unslash((string) $_COOKIE[self::LANG_COOKIE]));
+                    if ($stored !== self::SOURCE_COOKIE_VALUE) {
+                        $this->clearLanguageCookie();
+                    }
                 }
                 return;
             }
@@ -316,6 +322,30 @@ class UnifiedBuffer
     }
 
     /**
+     * Record that the visitor chose the source language by storing the literal
+     * value 'source' in the preference cookie.
+     *
+     * The hosted runtime script (s.js) shares this cookie: 'source' tells it the
+     * visitor opted out of the browser-language redirect, whereas deleting the
+     * cookie would put them back in the first-visit state and the script would
+     * redirect them again.
+     */
+    private function setSourceCookie(): void
+    {
+        if (headers_sent()) {
+            return;
+        }
+
+        setcookie(
+            self::LANG_COOKIE,
+            self::SOURCE_COOKIE_VALUE,
+            $this->languageCookieOptions(time() + 30 * DAY_IN_SECONDS)
+        );
+        // Reflect into $_COOKIE so later code in this request sees the new value.
+        $_COOKIE[self::LANG_COOKIE] = self::SOURCE_COOKIE_VALUE;
+    }
+
+    /**
      * Expire the preference cookie using the exact same path/domain attributes it
      * was set with — browsers only match a deletion against an identical cookie.
      */
@@ -388,6 +418,7 @@ class UnifiedBuffer
             return null;
         }
 
+        // Also filters out the 'source' opt-out value: it is not a language code.
         if (universally_resolve_url_code_to_locale($lang) === false) {
             return null;
         }

@@ -76,3 +76,24 @@ if ($universallyTestRemember !== null) {
 if (isset($_SERVER['HTTP_X_UNIVERSALLY_TEST_FILTER']) && $_SERVER['HTTP_X_UNIVERSALLY_TEST_FILTER'] === 'off') {
     add_filter('universally_remember_language', '__return_false');
 }
+
+/**
+ * X-Universally-Test-Api-Key: <64-char key> — pretend the site is connected, so
+ * request-scoped tests can exercise the code paths that need a public API key
+ * (the browser runtime script tag) without saving anything to the database.
+ */
+if (isset($_SERVER['HTTP_X_UNIVERSALLY_TEST_API_KEY'])) {
+    $universallyTestApiKey = (string) $_SERVER['HTTP_X_UNIVERSALLY_TEST_API_KEY'];
+    add_filter('pre_option_universally_api_key', function () use ($universallyTestApiKey) {
+        return $universallyTestApiKey;
+    });
+
+    // A configured key makes the buffer POST the page to the translator. Real
+    // outbound HTTP from inside Playground's PHP-WASM crashes the worker while
+    // the output buffer is being flushed, so short-circuit every request to a
+    // WP_Error: the plugin then falls back to serving the untranslated HTML,
+    // which is all these tests look at.
+    add_filter('pre_http_request', function () {
+        return new WP_Error('universally_test_no_http', 'Outbound HTTP disabled in tests.');
+    });
+}

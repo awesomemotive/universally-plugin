@@ -26,9 +26,9 @@ function universally_get_api_key(): string
 /**
  * Preset URL sets keyed by environment id.
  *
- * Each entry maps the three service names ('api', 'translator', 'app') to a base
- * URL without a trailing slash. The 'custom' environment has no preset — it reads
- * the custom_*_url settings instead.
+ * Each entry maps the four service names ('api', 'translator', 'app', 'scripts')
+ * to a base URL without a trailing slash. The 'custom' environment has no
+ * preset — it reads the custom_*_url settings instead.
  *
  * @return array<string, array<string, string>>
  */
@@ -39,16 +39,19 @@ function universally_get_environment_presets(): array
             'api' => 'https://api.universally.com',
             'translator' => 'https://translator.universally.com',
             'app' => 'https://app.universally.com',
+            'scripts' => 'https://scripts.universally.com',
         ],
         'staging' => [
             'api' => 'https://api-staging.universally.com',
             'translator' => 'https://translator-staging.universally.com',
             'app' => 'https://app-staging.universally.com',
+            'scripts' => 'https://scripts-staging.universally.com',
         ],
         'local' => [
             'api' => 'http://localhost:9123',
             'translator' => 'http://localhost:9122',
             'app' => 'http://localhost:3000',
+            'scripts' => 'http://localhost:9129',
         ],
     ];
 }
@@ -98,7 +101,7 @@ function universally_is_default_environment(): bool
  *
  * Only reads constants and get_option — safe to call on every request.
  *
- * @param string $service One of 'api', 'translator', 'app'.
+ * @param string $service One of 'api', 'translator', 'app', 'scripts'.
  * @return string
  */
 function universally_resolve_service_url(string $service): string
@@ -110,6 +113,7 @@ function universally_resolve_service_url(string $service): string
         'api' => 'UNIVERSALLY_API_URL',
         'translator' => 'UNIVERSALLY_TRANSLATOR_URL',
         'app' => 'UNIVERSALLY_APP_URL',
+        'scripts' => 'UNIVERSALLY_SCRIPTS_URL',
     ];
 
     // A wp-config constant always wins.
@@ -169,6 +173,19 @@ function universally_get_translator_url(): string
 function universally_get_app_url(): string
 {
     return universally_resolve_service_url('app');
+}
+
+/**
+ * Get the Universally scripts base URL (no trailing slash).
+ *
+ * Resolves through the environment switcher (Developer tab), overridable in
+ * wp-config.php via `define('UNIVERSALLY_SCRIPTS_URL', 'http://localhost:9129');`.
+ * Single source of truth — every browser-runtime script URL should resolve
+ * through this so the override only lives in one place.
+ */
+function universally_get_scripts_url(): string
+{
+    return universally_resolve_service_url('scripts');
 }
 
 /**
@@ -910,6 +927,52 @@ function universally_notranslate_meta(): void
     }
 
     echo '<meta name="google" content="notranslate" />' . "\n";
+}
+
+/**
+ * URL of the Universally browser runtime for this site, or '' when the site
+ * is not connected yet.
+ *
+ * The runtime is the platform's single browser entry point: the served file
+ * decides what runs (auto-redirect today, more later), so the tag is loaded
+ * unconditionally and is inert until a feature is switched on in the
+ * dashboard. Do not gate it on site config or plan fields.
+ */
+function universally_get_runtime_script_url(): string
+{
+    $publicKey = universally_get_public_api_key();
+    $url = $publicKey === '' ? '' : universally_get_scripts_url() . '/p/' . $publicKey . '/s.js';
+
+    /**
+     * Filter the URL of the Universally browser runtime script.
+     *
+     * Return an empty string to stop the plugin printing the tag.
+     *
+     * @param string $url       Script URL, or '' when the site has no API key.
+     * @param string $publicKey The site's public API key ('' when not connected).
+     */
+    return (string) apply_filters('universally_runtime_script_url', $url, $publicKey);
+}
+
+/**
+ * Print the Universally browser runtime <script> tag. Hooked on wp_head.
+ *
+ * Plain async script, never type="module": the file reads
+ * document.currentScript.src to find its own origin and key, which is null
+ * for modules. No version query string either — the path is frozen and the
+ * file is cached 15 minutes in the browser by design.
+ */
+function universally_runtime_script_tag(): void
+{
+    $url = universally_get_runtime_script_url();
+    if ($url === '') {
+        return;
+    }
+
+    wp_print_script_tag([
+        'src' => $url,
+        'async' => true,
+    ]);
 }
 
 /**
