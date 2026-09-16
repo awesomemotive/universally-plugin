@@ -446,7 +446,7 @@ return [
             'id' => 'environment',
             'type' => 'select',
             'label' => __('Environment', 'universally-language-translation-multilingual-tool'),
-            'description' => __('A wp-config constant (UNIVERSALLY_API_URL, UNIVERSALLY_TRANSLATOR_URL, UNIVERSALLY_APP_URL) always overrides this setting.', 'universally-language-translation-multilingual-tool'),
+            'description' => __('A wp-config constant (UNIVERSALLY_API_URL, UNIVERSALLY_TRANSLATOR_URL, UNIVERSALLY_APP_URL, UNIVERSALLY_SCRIPTS_URL) always overrides this setting.', 'universally-language-translation-multilingual-tool'),
             'options' => [
                 'production' => __('Production', 'universally-language-translation-multilingual-tool'),
                 'staging' => __('Staging', 'universally-language-translation-multilingual-tool'),
@@ -483,6 +483,17 @@ return [
             'type' => 'text',
             'label' => __('App URL', 'universally-language-translation-multilingual-tool'),
             'placeholder' => 'https://app.universally.com',
+            'default' => '',
+            'sanitize' => 'url',
+            'conditions' => [
+                'environment = custom',
+            ],
+        ],
+        [
+            'id' => 'custom_scripts_url',
+            'type' => 'text',
+            'label' => __('Scripts URL', 'universally-language-translation-multilingual-tool'),
+            'placeholder' => 'https://scripts.universally.com',
             'default' => '',
             'sanitize' => 'url',
             'conditions' => [

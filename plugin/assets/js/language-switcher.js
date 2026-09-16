@@ -212,12 +212,15 @@ class UniversallySwitcher extends HTMLElement {
     // on; writing it anyway would leave a stray cookie the server ignores.
     if (this._config.rememberLanguage === false) return;
 
-    // Empty urlPrefix means the source language: clear the cookie for instant
-    // local effect. The authoritative clear happens server-side via the
-    // ?universally_switch=source marker on the source link, which uses the
-    // exact cookie path/domain attributes the cookie was set with.
-    const maxAge = urlPrefix ? 60 * 60 * 24 * 30 : 0;
-    const value = urlPrefix ? encodeURIComponent(urlPrefix) : '';
+    // Empty urlPrefix means the source language: store the literal value
+    // "source" for instant local effect. The hosted runtime script shares this
+    // cookie and reads "source" as "visitor opted out, do not redirect";
+    // deleting the cookie instead would make the script redirect again on the
+    // next source page load. The authoritative write still happens server-side
+    // via the ?universally_switch=source marker on the source link, which uses
+    // the exact cookie path/domain attributes the cookie was set with.
+    const maxAge = 60 * 60 * 24 * 30;
+    const value = urlPrefix ? encodeURIComponent(urlPrefix) : 'source';
     const secure = location.protocol === 'https:' ? ';secure' : '';
     document.cookie = `universally_lang=${value};path=/;max-age=${maxAge};samesite=Lax${secure}`;
   }

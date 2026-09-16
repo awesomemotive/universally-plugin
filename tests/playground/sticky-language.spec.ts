@@ -34,13 +34,25 @@ test.describe('sticky language cookie — default (remember on)', () => {
     expect(res.headers()['location']).toMatch(/\/pt\/$/);
   });
 
-  test('?universally_switch=source clears the cookie and redirects clean', async ({ request }) => {
+  test('?universally_switch=source writes the source cookie and redirects clean', async ({ request }) => {
     await request.get('/pt/');
     const res = await request.get('/?universally_switch=source', { maxRedirects: 0 });
     expect(res.status()).toBe(302);
     expect(res.headers()['location']).toMatch(/\/$/);
     expect(res.headers()['location']).not.toContain('universally_switch');
-    expect(await hasLangCookie(request)).toBe(false);
+
+    // The opt-out is stored, not deleted: the hosted runtime script reads
+    // "source" as "do not redirect", while no cookie means "first visit".
+    const cookie = langSetCookie(res);
+    expect(cookie, 'Set-Cookie for universally_lang').toBeDefined();
+    expect(cookie).toMatch(/^universally_lang=source;/);
+    expect(cookie).toContain('Max-Age=2592000');
+    expect(cookie).toMatch(/samesite=lax/i);
+
+    const state = await request.storageState();
+    const stored = state.cookies.find((c) => c.name === COOKIE);
+    expect(stored, 'stored universally_lang cookie').toBeDefined();
+    expect(stored?.value).toBe('source');
   });
 });
 
@@ -76,6 +88,22 @@ test.describe('sticky language cookie — remember off', () => {
     const res = await request.get('/?universally_switch=source', { headers: OFF, maxRedirects: 0 });
     expect(res.status()).toBe(302);
     expect(res.headers()['location']).not.toContain('universally_switch');
+    // The opt-out is written regardless of the remember-language setting: the
+    // hosted runtime script needs it to know not to redirect this visitor.
+    expect(langSetCookie(res)).toMatch(/^universally_lang=source;/);
+  });
+
+  test('a source cookie is kept, not cleared', async ({ request }) => {
+    await request.get('/?universally_switch=source', { headers: OFF });
+    expect(await hasLangCookie(request)).toBe(true);
+
+    const res = await request.get('/', { headers: OFF, maxRedirects: 0 });
+    expect(res.status()).toBe(200);
+    expect(langSetCookie(res), 'no Set-Cookie for universally_lang').toBeUndefined();
+
+    const state = await request.storageState();
+    const stored = state.cookies.find((c) => c.name === COOKIE);
+    expect(stored?.value).toBe('source');
   });
 
   test('explicit on setting keeps the redirect', async ({ request }) => {
