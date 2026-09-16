@@ -3,7 +3,7 @@ import { test, expect, type Page, type ConsoleMessage } from '@playwright/test';
 const SLUG = 'universally-language-translation-multilingual-tool';
 const PANEL_PAGE = '/wp-admin/admin.php?page=universally_settings';
 
-const TABS = ['general_tab', 'language_switcher_tab', 'styling_tab'] as const;
+const TABS = ['general_tab', 'language_switcher_tab', 'styling_tab', 'settings_tab'] as const;
 
 const FATAL_NEEDLES = [
   'There has been a critical error',
@@ -75,6 +75,27 @@ test.describe('Universally smoke', () => {
       expect(consoleErrors, `no console errors on ${tabId}`).toEqual([]);
     });
   }
+
+  test('styling tab shows a selected default swatch for every color field', async ({ page }) => {
+    const consoleErrors = attachConsoleGuard(page);
+    await page.goto(`${PANEL_PAGE}#styling_tab`);
+
+    const tabContent = page.locator('.wp-panel__tab-content [data-tab="styling_tab"]');
+    await expect(tabContent).toBeVisible({ timeout: 15_000 });
+
+    const colorFields = tabContent.locator('.wp-panel-color-field');
+    await expect(colorFields, 'eight color fields render').toHaveCount(8, { timeout: 15_000 });
+
+    // WordPress's ColorPalette renders swatches as a listbox and marks the
+    // active one with aria-selected="true" (not is-pressed, which only applies
+    // to the non-listbox button variant); with no schema default nothing is
+    // selected and the field looks transparent.
+    const pressed = tabContent.locator('.wp-panel-color-field .components-circular-option-picker__option[aria-selected="true"]');
+    await expect(pressed, 'every color field has a selected default swatch').toHaveCount(8, { timeout: 15_000 });
+
+    await expectNoFatalCopy(page);
+    expect(consoleErrors, 'no console errors on styling tab').toEqual([]);
+  });
 
   test('REST namespace is registered', async ({ request }) => {
     const res = await request.get('/wp-json/universally/v1');

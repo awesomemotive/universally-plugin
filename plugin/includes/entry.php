@@ -36,6 +36,7 @@ add_action('init', function (): void {
 
 add_action('wp_head', 'universally_hreflang_tags', 1);
 add_action('wp_head', 'universally_notranslate_meta', 1);
+add_action('wp_head', 'universally_runtime_script_tag', 1);
 add_filter('language_attributes', 'universally_html_translate_attr');
 
 register_activation_hook(UNIVERSALLY_PLUGIN_FILE, function (): void {

@@ -18,21 +18,11 @@ class UnifiedBuffer
 {
     private const LANG_COOKIE = 'universally_lang';
     private const SWITCH_PARAM = 'universally_switch';
+    private const SOURCE_COOKIE_VALUE = 'source';
 
     public function __construct()
     {
         add_action('init', [$this, 'setup'], 1);
-    }
-
-    private function targetLanguages(): array
-    {
-        $targetLanguages = universally_get_all_languages();
-
-        if (!is_array($targetLanguages)) {
-            return [];
-        }
-
-        return $targetLanguages;
     }
 
     /**
@@ -47,7 +37,7 @@ class UnifiedBuffer
             return false;
         }
 
-        return (new Http(UNIVERSALLY_TRANSLATOR_URL))->post(
+        return (new Http(universally_get_translator_url()))->post(
             '/v1/translate',
             [
                 'html' => $html,
@@ -76,7 +66,7 @@ class UnifiedBuffer
             if ($refererLang === false) {
                 return;
             }
-            $refererLocale = $this->resolveUrlCodeToLocale($refererLang);
+            $refererLocale = universally_resolve_url_code_to_locale($refererLang);
             if ($refererLocale === false) {
                 return;
             }
@@ -86,13 +76,27 @@ class UnifiedBuffer
         } elseif ($detected === false) {
             // GET without a URL prefix. An explicit ?universally_switch=source marker
             // (added by the switcher to the source-language link) means the visitor
-            // opted back into the source language: clear the stored preference with
-            // the same cookie attributes used to set it, then redirect to the clean
+            // opted back into the source language: record the opt-out with the same
+            // cookie attributes used to set a language, then redirect to the clean
             // URL. Handled server-side so it works even when the switcher's click
             // handler doesn't run (new tab, prefetch, cookie path/domain mismatch).
             if ($this->isSourceSwitchRequest()) {
-                $this->clearLanguageCookie();
+                $this->setSourceCookie();
                 $this->redirectToCleanUrl();
+            }
+            // Remembering is off: forget any language preference left over from when
+            // it was on, so already-cookied visitors stop being redirected without
+            // needing the ?universally_switch=source escape hatch. A 'source' cookie
+            // is not such a leftover — it is the visitor's explicit opt-out, shared
+            // with the hosted runtime script, and must survive.
+            if (!universally_remember_language_enabled()) {
+                if (isset($_COOKIE[self::LANG_COOKIE])) {
+                    $stored = sanitize_key(wp_unslash((string) $_COOKIE[self::LANG_COOKIE]));
+                    if ($stored !== self::SOURCE_COOKIE_VALUE) {
+                        $this->clearLanguageCookie();
+                    }
+                }
+                return;
             }
             // Otherwise honor the visitor's stored preference.
             $preferredLang = $this->getPreferredLanguageFromCookie();
@@ -110,7 +114,15 @@ class UnifiedBuffer
             if ($pathAfterPrefix === null) {
                 $this->redirectToTrailingSlash($langCode);
             }
-            $this->setLanguageCookie($langCode);
+            // Non-HTML endpoints (feeds, sitemaps, robots.txt, system paths)
+            // must never serve source-language content with 200 at a /{lang}/
+            // URL — bounce them to the source URL before touching cookies.
+            if ($this->isNonTranslatableRequest($pathAfterPrefix)) {
+                $this->redirectToSource($pathAfterPrefix);
+            }
+            if (universally_remember_language_enabled()) {
+                $this->setLanguageCookie($langCode);
+            }
             if (universally_path_is_excluded($pathAfterPrefix)) {
                 $this->redirectToSource($pathAfterPrefix);
             }
@@ -123,7 +135,7 @@ class UnifiedBuffer
             $this->stripLanguagePrefix($pathAfterPrefix);
         }
         $this->preserveLanguagePrefixOnRedirects($langCode);
-        $this->preserveLanguagePrefixOnWooCommerceUrls($langCode);
+        (new Compat\Manager())->register($langCode);
 
         // Don't capture responses from endpoints that return JSON/XML — translating
         // those bodies as HTML would corrupt the response. Frontend HTML rendered as
@@ -220,7 +232,7 @@ class UnifiedBuffer
         }
 
         $langCode = strtolower($matches[1]);
-        $targetLocale = $this->resolveUrlCodeToLocale($langCode);
+        $targetLocale = universally_resolve_url_code_to_locale($langCode);
 
         if ($targetLocale === false) {
             return false;
@@ -246,6 +258,22 @@ class UnifiedBuffer
     }
 
     /**
+     * Whether the current prefixed request targets an endpoint the translator
+     * can never process (feed, sitemap, file-like or WP system path).
+     */
+    private function isNonTranslatableRequest(string $pathAfterPrefix): bool
+    {
+        // WordPress renders a feed for ?feed=rss2 on any URL. Presence check
+        // only — the value is never used, so nonce verification doesn't apply.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        if (isset($_GET['feed'])) {
+            return true;
+        }
+
+        return universally_path_is_non_translatable($pathAfterPrefix);
+    }
+
+    /**
      * For visitors with a stored language preference, redirect unprefixed GET
      * requests to the matching /{lang}/ URL. Skips WordPress system endpoints,
      * file-like paths, and pages excluded from translation.
@@ -257,13 +285,9 @@ class UnifiedBuffer
         $parsed = wp_parse_url($requestUri);
         $path = $parsed['path'] ?? '/';
 
-        // Skip WordPress system endpoints
-        if (preg_match('#^/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json|wp-cron\.php|wp-trackback\.php|wp-comments-post\.php|xmlrpc\.php)(/|$)#', $path)) {
-            return;
-        }
-
-        // Skip file-like paths (sitemap.xml, favicon.ico, robots.txt, etc.)
-        if (preg_match('/\.[a-z0-9]{1,5}$/i', $path)) {
+        // Skip endpoints that are never translated (system paths, feeds,
+        // file-like URLs such as sitemap.xml or robots.txt).
+        if (universally_path_is_non_translatable($path)) {
             return;
         }
 
@@ -295,6 +319,30 @@ class UnifiedBuffer
         setcookie(self::LANG_COOKIE, $langCode, $this->languageCookieOptions(time() + 30 * DAY_IN_SECONDS));
         // Reflect into $_COOKIE so later code in this request sees the new value.
         $_COOKIE[self::LANG_COOKIE] = $langCode;
+    }
+
+    /**
+     * Record that the visitor chose the source language by storing the literal
+     * value 'source' in the preference cookie.
+     *
+     * The hosted runtime script (s.js) shares this cookie: 'source' tells it the
+     * visitor opted out of the browser-language redirect, whereas deleting the
+     * cookie would put them back in the first-visit state and the script would
+     * redirect them again.
+     */
+    private function setSourceCookie(): void
+    {
+        if (headers_sent()) {
+            return;
+        }
+
+        setcookie(
+            self::LANG_COOKIE,
+            self::SOURCE_COOKIE_VALUE,
+            $this->languageCookieOptions(time() + 30 * DAY_IN_SECONDS)
+        );
+        // Reflect into $_COOKIE so later code in this request sees the new value.
+        $_COOKIE[self::LANG_COOKIE] = self::SOURCE_COOKIE_VALUE;
     }
 
     /**
@@ -370,7 +418,8 @@ class UnifiedBuffer
             return null;
         }
 
-        if ($this->resolveUrlCodeToLocale($lang) === false) {
+        // Also filters out the 'source' opt-out value: it is not a language code.
+        if (universally_resolve_url_code_to_locale($lang) === false) {
             return null;
         }
 
@@ -406,58 +455,8 @@ class UnifiedBuffer
     private function preserveLanguagePrefixOnRedirects(string $langCode): void
     {
         add_filter('wp_redirect', function (string $location) use ($langCode): string {
-            return $this->prefixUrlWithLanguage($location, $langCode);
+            return universally_prefix_url_with_language($location, $langCode);
         });
-    }
-
-    /**
-     * Ensure same-origin form actions / outbound URLs WC emits carry the language
-     * prefix, so the resulting POST or navigation stays in the visitor's language.
-     */
-    private function preserveLanguagePrefixOnWooCommerceUrls(string $langCode): void
-    {
-        $filter = function (string $url) use ($langCode): string {
-            return $this->prefixUrlWithLanguage($url, $langCode);
-        };
-
-        // Form action for the single-product add-to-cart form (the case where
-        // submitting otherwise drops the visitor to the unprefixed product URL).
-        add_filter('woocommerce_add_to_cart_form_action', $filter);
-    }
-
-    /**
-     * Prefix a same-origin URL with /{langCode}/. Returns the URL unchanged when
-     * it points at another host, hits a WordPress system path, or already carries
-     * a valid language prefix.
-     */
-    private function prefixUrlWithLanguage(string $url, string $langCode): string
-    {
-        $parsed = wp_parse_url($url);
-        $path = $parsed['path'] ?? '/';
-
-        $siteHost = wp_parse_url(home_url(), PHP_URL_HOST);
-        if (!empty($parsed['host']) && $parsed['host'] !== $siteHost) {
-            return $url;
-        }
-
-        if (preg_match('/^\/(wp-admin|wp-includes|wp-content|wp-login\.php|wp-json)/', $path)) {
-            return $url;
-        }
-
-        $firstSegment = strtolower(explode('/', trim($path, '/'))[0] ?? '');
-        if ($firstSegment !== '' && $this->resolveUrlCodeToLocale($firstSegment) !== false) {
-            return $url;
-        }
-
-        $newPath = '/' . $langCode . $path;
-        $query = !empty($parsed['query']) ? '?' . $parsed['query'] : '';
-
-        if (!empty($parsed['host'])) {
-            $scheme = $parsed['scheme'] ?? 'https';
-            return $scheme . '://' . $parsed['host'] . $newPath . $query;
-        }
-
-        return $newPath . $query;
     }
 
     public function translateBuffer(string $buffer): string
@@ -510,23 +509,4 @@ class UnifiedBuffer
         }
     }
 
-    /**
-     * @return string|false
-     */
-    private function resolveUrlCodeToLocale(string $urlCode)
-    {
-        $allLanguages = $this->targetLanguages();
-
-        if (empty($allLanguages)) {
-            return false;
-        }
-
-        foreach ($allLanguages as $language) {
-            if (isset($language['urlPrefix']) && $language['urlPrefix'] === $urlCode && empty($language['isDisabled'])) {
-                return $language['variant'] ?? false;
-            }
-        }
-
-        return false;
-    }
 }

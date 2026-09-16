@@ -7,6 +7,7 @@ import { useTabContent } from '../hooks/useTabContent';
 import { useTabErrors } from '../hooks/useTabErrors';
 import { useUnsavedChangesWarning } from '../hooks/useUnsavedChangesWarning';
 import { Tab } from './Tab';
+import { Notices } from './Notices';
 import { Onboarding } from './Onboarding';
 
 interface PanelProps {
@@ -109,6 +110,8 @@ export function Panel({ config, parsed, onboarding }: PanelProps) {
 
         {/* Tab content */}
         <div className="wp-panel__tab-content">
+          {/* Panel-wide notices: sit above the first card on every tab */}
+          <Notices notices={config.notices} />
           {activeTab && (
             <Tab
               tabId={activeTab}

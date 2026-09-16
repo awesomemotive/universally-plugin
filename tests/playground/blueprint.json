@@ -9,6 +9,15 @@
     {
       "step": "activatePlugin",
       "pluginPath": "universally-language-translation-multilingual-tool/universally.php"
+    },
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/universally-test-languages.php",
+      "data": "<?php // Playground test fixture: provide Universally languages without a connected API so /{lang}/ URL detection works. Uses the pre_transient filter (not a seeded transient) so admin/REST flows that re-cache an empty language list on API failure cannot wipe the fixture mid-suite. Flag URLs are 1x1 data URIs because the smoke suite asserts zero console errors. \nadd_filter('pre_transient_universally_all_languages', function () { return array(array('name' => 'English', 'originalName' => 'English', 'region' => 'en-US', 'flagUrl' => 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'lang' => 'en', 'variant' => 'en-US', 'urlPrefix' => '', 'isSource' => true), array('name' => 'Spanish', 'originalName' => 'Español', 'region' => 'es-MX', 'flagUrl' => 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'lang' => 'es', 'variant' => 'es-MX', 'urlPrefix' => 'es', 'isSource' => false, 'isDisabled' => false)); });"
     }
   ]
 }

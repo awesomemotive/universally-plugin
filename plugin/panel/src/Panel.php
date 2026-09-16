@@ -216,6 +216,9 @@ final class Panel
      * The first accessible tab uses the bare page slug (no hash) so WordPress
      * highlights it as the current menu item. Replaces the parent entry WordPress
      * auto-adds, so the slug list reads General / Language Switcher / Styling / …
+     *
+     * Tabs flagged `hidden` are skipped: they stay reachable via #tabId but get
+     * no sidebar entry (and no tab in the panel's tabs bar).
      */
     private function registerTabSubmenus(string $capability): void
     {
@@ -228,6 +231,10 @@ final class Panel
         $entries = [];
         $first = true;
         foreach ($this->tabs as $tabId => $tab) {
+            if (!empty($tab['hidden'])) {
+                continue;
+            }
+
             $cap = $tab['capability'] ?? $capability;
             if (!current_user_can($cap)) {
                 continue;

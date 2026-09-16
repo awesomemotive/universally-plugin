@@ -71,7 +71,9 @@ class UniversallySwitcher extends HTMLElement {
     };
 
     const itemsHtml = others.map(lang => {
-      const hreflang = lang.region || lang.variant || '';
+      // Resolved server-side so it honors the "Hreflang Format" setting; the
+      // region/variant chain is a fallback for configs cached before that existed.
+      const hreflang = lang.hreflang || lang.region || lang.variant || '';
       // data-lang carries the urlPrefix for target languages; an empty value
       // marks the source language so the click handler can clear the cookie.
       const dataLang = lang.isSource ? '' : (lang.urlPrefix || '');
@@ -101,16 +103,16 @@ class UniversallySwitcher extends HTMLElement {
           align-items: center;
           gap: 8px;
           padding: var(--universally-trigger-padding, 8px 12px);
-          background: var(--universally-trigger-bg, #fff);
-          border: 1px solid var(--universally-trigger-border, #ddd);
+          background: var(--universally-trigger-bg, #ffffff);
+          border: 1px solid var(--universally-trigger-border, #d1d5db);
           border-radius: var(--universally-trigger-radius, 6px);
           cursor: pointer;
           font: inherit;
-          color: var(--universally-trigger-text, #1a1a1a);
+          color: var(--universally-trigger-text, #111827);
           transition: border-color 0.15s;
           user-select: none;
         }
-        .trigger:hover { border-color: var(--universally-trigger-border-hover, #999); }
+        .trigger:hover { border-color: var(--universally-trigger-border-hover, #9ca3af); }
         .trigger:focus-visible {
           outline: 2px solid var(--universally-focus, #0073aa);
           outline-offset: 2px;
@@ -134,8 +136,8 @@ class UniversallySwitcher extends HTMLElement {
           margin: 4px 0;
           padding: 4px;
           list-style: none;
-          background: var(--universally-dropdown-bg, #fff);
-          border: 1px solid var(--universally-dropdown-border, #ddd);
+          background: var(--universally-dropdown-bg, #ffffff);
+          border: 1px solid var(--universally-dropdown-border, #d1d5db);
           border-radius: var(--universally-dropdown-radius, 6px);
           box-shadow: var(--universally-dropdown-shadow, 0 4px 12px rgba(0,0,0,0.1));
           min-width: 100%;
@@ -153,13 +155,13 @@ class UniversallySwitcher extends HTMLElement {
           align-items: center;
           gap: 8px;
           padding: 8px 10px;
-          color: var(--universally-dropdown-text, #1a1a1a);
+          color: var(--universally-dropdown-text, #111827);
           text-decoration: none;
           border-radius: 4px;
           transition: background 0.15s;
           font: inherit;
         }
-        .dropdown a:hover { background: var(--universally-dropdown-hover-bg, #f5f5f5); }
+        .dropdown a:hover { background: var(--universally-dropdown-hover-bg, #f3f4f6); }
         .dropdown a:focus-visible {
           outline: 2px solid var(--universally-focus, #0073aa);
           outline-offset: -2px;
@@ -206,12 +208,19 @@ class UniversallySwitcher extends HTMLElement {
   }
 
   _persistLanguageChoice(urlPrefix) {
-    // Empty urlPrefix means the source language: clear the cookie for instant
-    // local effect. The authoritative clear happens server-side via the
-    // ?universally_switch=source marker on the source link, which uses the
-    // exact cookie path/domain attributes the cookie was set with.
-    const maxAge = urlPrefix ? 60 * 60 * 24 * 30 : 0;
-    const value = urlPrefix ? encodeURIComponent(urlPrefix) : '';
+    // The server only honors the cookie when "Remember visitor's language" is
+    // on; writing it anyway would leave a stray cookie the server ignores.
+    if (this._config.rememberLanguage === false) return;
+
+    // Empty urlPrefix means the source language: store the literal value
+    // "source" for instant local effect. The hosted runtime script shares this
+    // cookie and reads "source" as "visitor opted out, do not redirect";
+    // deleting the cookie instead would make the script redirect again on the
+    // next source page load. The authoritative write still happens server-side
+    // via the ?universally_switch=source marker on the source link, which uses
+    // the exact cookie path/domain attributes the cookie was set with.
+    const maxAge = 60 * 60 * 24 * 30;
+    const value = urlPrefix ? encodeURIComponent(urlPrefix) : 'source';
     const secure = location.protocol === 'https:' ? ';secure' : '';
     document.cookie = `universally_lang=${value};path=/;max-age=${maxAge};samesite=Lax${secure}`;
   }

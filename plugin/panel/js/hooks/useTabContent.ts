@@ -7,7 +7,9 @@ interface TabInfo {
 }
 
 interface TabContent {
+  /** Every tab id, hidden ones included — hash deep-links must still resolve. */
   tabIds: string[];
+  /** Visible tabs only — what the tabs bar renders. */
   tabs: TabInfo[];
   fieldsByTab: Record<string, FieldItem[]>;
   sectionsByTab: Record<string, SectionItem[]>;
@@ -43,11 +45,14 @@ export const useTabContent = (parsed: ParsedSchema): TabContent => {
       }
     }
 
-    // Build tab info
-    const tabs = tabIds.map((id) => ({
-      name: id,
-      title: parsed.tabs[id].label,
-    }));
+    // Build tab info for the tabs bar. Hidden tabs are excluded here but stay in
+    // tabIds, so useHashTab can still open them from a #tabId deep link.
+    const tabs = tabIds
+      .filter((id) => !parsed.tabs[id]?.hidden)
+      .map((id) => ({
+        name: id,
+        title: parsed.tabs[id].label,
+      }));
 
     return { tabIds, tabs, fieldsByTab, sectionsByTab };
   }, [parsed]);

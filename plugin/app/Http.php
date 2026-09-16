@@ -21,7 +21,14 @@ class Http
 
     public function __construct(?string $baseUrl = null, int $timeout = 30)
     {
-        $this->apiUrl = trailingslashit($baseUrl ?? UNIVERSALLY_API_URL);
+        // includes/helpers.php is loaded during plugin bootstrap, before anything
+        // can construct an Http instance; the guard is belt-and-braces for
+        // direct/early includes and keeps the production default reachable.
+        $default = function_exists('universally_get_api_url')
+            ? universally_get_api_url()
+            : 'https://api.universally.com';
+
+        $this->apiUrl = trailingslashit($baseUrl ?? $default);
         $this->timeout = $timeout;
     }
 

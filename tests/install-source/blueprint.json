@@ -1,0 +1,14 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "preferredVersions": { "php": "7.4", "wp": "7.1" },
+  "steps": [
+    {
+      "step": "activatePlugin",
+      "pluginPath": "universally-language-translation-multilingual-tool/universally.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require '/wordpress/qa/wp-regression.php';"
+    }
+  ]
+}

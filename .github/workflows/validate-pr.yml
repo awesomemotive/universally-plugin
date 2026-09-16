@@ -261,6 +261,7 @@ jobs:
           # the runner waits for the bg server at step end.
           setsid nohup npx --yes @wp-playground/cli@latest server \
             --mount="$PLUGIN_DIR:/wordpress/wp-content/plugins/${SLUG}" \
+            --mount="${{ github.workspace }}/tests/playground/mu-plugins:/wordpress/wp-content/mu-plugins" \
             --port=12345 \
             --php=7.4 \
             --blueprint=tests/playground/blueprint.json \

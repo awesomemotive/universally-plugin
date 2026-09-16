@@ -2,7 +2,7 @@
 Contributors: benjaminprojas, _smartik_, smub
 Tags: translate, translation, multilingual, language switcher, multilingual seo
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 1.0.8
 License: GPLv2 or later
@@ -244,6 +244,17 @@ You can reach our support team through the [Universally dashboard](https://app.u
 7. Language switcher styling — Customize trigger and dropdown colors, borders, border radius, and flag style.
 
 == Changelog ==
+
+= 1.0.9 =
+* New: An SEO setting under Preferences to choose your hreflang format — region codes (fr-FR, pt-BR) or language only (fr, pt). Pick language only if you keep one translation per language rather than one per country, so it reaches every speaker of that language. Region codes remain the default, so existing sites are unchanged.
+* New: A "Remember visitor's language" toggle under Preferences. It is on by default and keeps the current behavior: opening a translated page stores that language for 30 days and sends the visitor back to it on later visits. Turn it off if your pages don't show a language switcher, since visitors would otherwise have no way back to the original language. Turning it off also clears the cookie the next time a visitor opens one of your original URLs. Developers can override the setting with the `universally_remember_language` filter.
+* New: Filters throughout the plugin's helper functions so developers can extend it without unhooking anything. For hreflang: `universally_hreflang_links` (add, remove or retarget alternates as a code => URL array), `universally_hreflang_code`, `universally_hreflang_format` and `universally_hreflang_tags`. For languages and URLs: `universally_languages`, `universally_switcher_urls` and `universally_language_url`. For exclusions and browser translation: `universally_site_config`, `universally_exclude_pages`, `universally_path_is_excluded` and `universally_should_emit_notranslate`. For the language switcher: `universally_switcher_config` and `universally_switcher_html`, both covering the shortcode, auto-insert and block at once.
+* New: The settings panel now warns you when your site uses Plain permalinks, which Universally does not support, with a shortcut to the permalink settings.
+* New: Support for automatic redirect to the visitor's browser language. The plugin now loads the Universally browser script on every page; turn the redirect on from your Universally dashboard and first-time visitors land on the translation that matches their browser. Allow up to 15 minutes for the change to reach visitors, since browsers cache the script for that long. Picking the original language in the switcher is remembered, so nobody is redirected against their choice. Developers can change or remove the script tag with the `universally_runtime_script_url` filter.
+* Improvement: Background colors in the Styling tab now offer a Transparent swatch, as the border colors already did.
+* Fix: feeds, sitemaps, and other non-HTML URLs under a language prefix (for example /es/feed/ or /es/sitemap.xml) now redirect to the original URL instead of serving untranslated content at a translated address.
+* Fix: The Styling tab now shows the switcher's real default colors instead of empty swatches. The front end keeps the same look; only the panel and the stylesheet fallbacks were brought into line.
+* Fix: choosing the original language in the switcher now records that choice instead of forgetting the visitor's language preference entirely.
 
 = 1.0.8 =
 * Improvement: A cleaner, full-screen experience when connecting your site to Universally.
