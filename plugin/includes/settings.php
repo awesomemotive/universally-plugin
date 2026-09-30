@@ -4,10 +4,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Only do per-page work (which may hit the API or mint a nonce) when actually
-// rendering the settings admin page. This file is required on every `init`
-// (front-end, admin, and REST), so doing it unconditionally would churn the
-// connect-state nonce and fetch site config on every request.
+// Only do per-page work (which may hit the API) when actually rendering the
+// settings admin page. This file is required on every `init` (front-end, admin,
+// and REST), so doing it unconditionally would fetch site config on every request.
 $universally_connect_url = '';
 $universally_project_id  = '';
 if (
@@ -16,7 +15,11 @@ if (
     && sanitize_key(wp_unslash($_GET['page'])) === UNIVERSALLY_SETTINGS_KEY // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 ) {
     if (class_exists(\Universally\Onboarding::class)) {
-        $universally_connect_url = (new \Universally\Onboarding())->buildConnectUrl();
+        // Start at the plugin's own Welcome step (usage-consent checkbox, then
+        // "Let's Get Started" into the hosted flow), the same entry the
+        // post-activation redirect uses. Linking straight to the hosted
+        // /connect/account skipped that step from this tab.
+        $universally_connect_url = admin_url('admin.php?page=' . \Universally\Onboarding::CALLBACK_SLUG);
     }
     // Project id lets the Languages table deep-link into the dashboard
     // ({app}/projects/{id}/languages). Empty when not connected.

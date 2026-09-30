@@ -8,7 +8,7 @@ interface FieldConfig {
   independent?: boolean;
   /** Connect mode: render the hosted-onboarding launch button instead of a raw key input. */
   connect?: boolean;
-  /** Hosted onboarding URL the "Connect" button links to (built server-side with a fresh state). */
+  /** Where the "Connect" button goes: the plugin's connect Welcome page, which hands off to the hosted flow. */
   connectUrl?: string;
   connectLabel?: string;
   connectDescription?: string;
