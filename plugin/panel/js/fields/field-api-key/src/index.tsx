@@ -43,6 +43,16 @@ interface ApiKeyResponse {
 
 const cache = new Map<string, ApiKeyResponse>();
 
+// Fields are self-contained (no shared store), so the connection state crosses
+// field boundaries as a window event. The languages table listens for it to
+// follow Connect / Disconnect without a reload; keep the name and the
+// `{ detail: { connected } }` shape in sync with field-languages-table.
+const CONNECTION_EVENT = 'universally:connection';
+
+function announceConnection(connected: boolean): void {
+  window.dispatchEvent(new CustomEvent(CONNECTION_EVENT, { detail: { connected } }));
+}
+
 function maskKey(key: string): string {
   if (key.length <= 8) return '*'.repeat(key.length);
   return key.slice(0, 4) + '*'.repeat(key.length - 8) + key.slice(-4);
@@ -91,6 +101,7 @@ export function ApiKeyField({ fieldId, config }: Props) {
       setValid(res.valid);
       setMessage(res.message);
       setMessageType(res.valid ? 'success' : 'error');
+      if (res.valid) announceConnection(true);
     }
   };
 
@@ -105,6 +116,7 @@ export function ApiKeyField({ fieldId, config }: Props) {
       // In connect mode show a branded confirmation rather than the raw API message.
       setMessage(config.connect ? (config.disconnectedLabel ?? 'Universally disconnected') : res.message);
       setMessageType('info');
+      announceConnection(false);
     }
   };
 
