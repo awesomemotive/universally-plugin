@@ -349,12 +349,21 @@ class Onboarding
             'user-agent'  => 'UniversallyPreview/1.0 (+https://universally.com)',
         ]);
         if (is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200) {
+            \Universally\Log::error('Preview upload skipped: homepage not reachable from the server', [
+                'url'    => home_url('/'),
+                'error'  => is_wp_error($response) ? $response->get_error_message() : null,
+                'status' => is_wp_error($response) ? null : (int) wp_remote_retrieve_response_code($response),
+            ]);
             wp_send_json_error('Homepage not reachable', 502);
             return;
         }
         $html = (string) wp_remote_retrieve_body($response);
         $type = (string) wp_remote_retrieve_header($response, 'content-type');
         if ($html === '' || strlen($html) > 1500000 || ($type !== '' && stripos($type, 'text/html') === false)) {
+            \Universally\Log::error('Preview upload skipped: homepage not previewable', [
+                'bytes'       => strlen($html),
+                'contentType' => $type,
+            ]);
             wp_send_json_error('Homepage not previewable', 422);
             return;
         }
@@ -365,9 +374,18 @@ class Onboarding
             'html'    => $html,
         ]);
         if ($result === false) {
+            \Universally\Log::error('Preview upload failed: the API did not accept the homepage', [
+                'bytes' => strlen($html),
+                'state' => substr($state, 0, 6) . '…',
+            ]);
             wp_send_json_error('Upload failed', 502);
             return;
         }
+        \Universally\Log::info('Preview upload stored for the connect wizard', [
+            'bytes'  => strlen($html),
+            'state'  => substr($state, 0, 6) . '…',
+            'stored' => (bool) ($result['data']['stored'] ?? true),
+        ]);
         wp_send_json_success(['stored' => (bool) ($result['data']['stored'] ?? true)]);
     }
 
