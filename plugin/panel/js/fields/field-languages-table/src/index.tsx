@@ -14,8 +14,6 @@ interface FieldConfig {
      * connection event keeps this current afterwards (see CONNECTION_EVENT).
      */
     connected?: boolean;
-    /** Single line shown instead of the table while disconnected. */
-    disconnectedLabel?: string;
 
     [key: string]: unknown;
 }
@@ -184,8 +182,8 @@ export function LanguagesTableField({fieldId, config}: Props) {
     };
 
     // Follow Connect / Disconnect from the api-key field without a reload. Either
-    // way the old project's list is meaningless: drop it, and on reconnect the
-    // fetch below re-runs against the new one.
+    // way the old project's list is meaningless: drop it so the empty state shows
+    // straight away, and on reconnect the fetch below re-runs against the new one.
     useEffect(() => {
         const onConnection = (e: Event) => {
             const next = Boolean((e as CustomEvent<{connected?: boolean}>).detail?.connected);
@@ -401,21 +399,10 @@ export function LanguagesTableField({fieldId, config}: Props) {
         </>
     );
 
-    // Disconnected: no rows, no "Live in N", no Refresh / Add affordances — just
-    // a pointer back to the Connect button in the API panel above.
-    if (!connected) {
-        return (
-            <div className="wp-panel-languages-table" id={fieldId}>
-                <div className="wp-panel-languages-table__empty wp-panel-languages-table__empty--disconnected">
-                    <p className="wp-panel-languages-table__empty-desc">
-                        {config.disconnectedLabel ?? 'Connect your site to Universally to see and add languages.'}
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
-    if (loading && !data) {
+    // Disconnected: `data` was dropped and the fetch is gated, so the ordinary
+    // empty state below renders at once — the same screen Refresh used to
+    // reach — never the old project's rows.
+    if (connected && loading && !data) {
         return (
             <div className="wp-panel-languages-table">
                 <div className="wp-panel-languages-table__loading">Loading languages...</div>
@@ -423,7 +410,7 @@ export function LanguagesTableField({fieldId, config}: Props) {
         );
     }
 
-    if (error) {
+    if (connected && error) {
         return (
             <div className="wp-panel-languages-table">
                 {actions}

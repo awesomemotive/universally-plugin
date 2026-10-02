@@ -141,7 +141,6 @@ return [
             // Initial connection state. The api-key field's Connect/Disconnect
             // keeps the table in sync afterwards without a reload.
             'connected' => !empty(universally_get_api_key()),
-            'disconnectedLabel' => __('Connect your site to Universally to see and add languages.', 'universally-language-translation-multilingual-tool'),
         ],
         [
             'type' => 'tab',

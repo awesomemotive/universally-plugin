@@ -66,16 +66,6 @@
     color: #757575;
   }
 
-  // Disconnected: one line pointing back to the Connect button above.
-  &__empty--disconnected {
-    padding: 20px 16px;
-
-    .wp-panel-languages-table__empty-desc {
-      margin: 0;
-      font-size: 13px;
-    }
-  }
-
   // Lifted into the section's header bar (which is ~63px tall and has the
   // collapse arrow at the far right — we sit to the left of it).
   &__actions {
