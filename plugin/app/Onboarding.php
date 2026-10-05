@@ -282,6 +282,9 @@ class Onboarding
 
     /**
      * Build the hosted onboarding URL, persisting a round-trip state nonce.
+ *
+ * `cancel_url` is where the hosted flow's ✕ sends the user; `return_url` is
+ * where the completed flow comes back with its activation token.
      *
      * Targets /connect/account directly: the Welcome step is replicated in the
      * plugin's own connect screen (see renderLanding), so the hosted flow starts
@@ -307,6 +310,9 @@ class Onboarding
             'site_name'   => get_bloginfo('name'),
             'site_locale' => get_locale(),
             'return_url'  => admin_url('admin.php?page=' . self::CALLBACK_SLUG),
+            // Where the hosted flow's ✕ lands: the settings page, not the connect
+            // Welcome screen (which is what return_url renders without a token).
+            'cancel_url'  => admin_url('admin.php?page=' . UNIVERSALLY_SETTINGS_KEY),
             'state'       => $state,
             'source'      => $this->connectSource(),
             'v'           => '1',
