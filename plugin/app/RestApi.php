@@ -271,6 +271,10 @@ class RestApi
 
         if ($result['valid']) {
             update_option('universally_api_key', $value);
+            // Drop caches built for the previous connection (or the empty
+            // language list cached while disconnected).
+            delete_transient('universally_site_config');
+            delete_transient('universally_all_languages');
         }
 
         return new WP_REST_Response([

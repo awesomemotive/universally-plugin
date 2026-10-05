@@ -9,6 +9,11 @@ interface FieldConfig {
     appUrl?: string;
     /** Connected project id; enables a deep-link to its language panel. */
     projectId?: string;
+    /**
+     * Whether the site holds an API key at page load. The api-key field's
+     * connection event keeps this current afterwards (see CONNECTION_EVENT).
+     */
+    connected?: boolean;
 
     [key: string]: unknown;
 }
@@ -38,6 +43,11 @@ interface LanguagesResponse {
 }
 
 const cache = new Map<string, LanguagesResponse>();
+
+// Dispatched on window by field-api-key whenever the site connects or
+// disconnects, as `{ detail: { connected: boolean } }`. Fields are
+// self-contained, so this event is the contract between the two.
+const CONNECTION_EVENT = 'universally:connection';
 
 interface AddLanguageResponse {
     success: boolean;
@@ -109,6 +119,9 @@ export function LanguagesTableField({fieldId, config}: Props) {
     const [addingVariant, setAddingVariant] = useState<string | null>(null);
     const [addError, setAddError] = useState<string | null>(null);
     const [planLimitOpen, setPlanLimitOpen] = useState(false);
+    // Connection state: seeded by the server, then driven by the api-key field.
+    // There is no project to read or add languages to while disconnected.
+    const [connected, setConnected] = useState(config.connected ?? true);
     const {loading, error, request} = useFieldApi<LanguagesResponse>(config.endpoint);
 
     const addLanguage = async (variant: string) => {
@@ -168,17 +181,39 @@ export function LanguagesTableField({fieldId, config}: Props) {
         }
     };
 
+    // Follow Connect / Disconnect from the api-key field without a reload. Either
+    // way the old project's list is meaningless: drop it so the empty state shows
+    // straight away, and on reconnect the fetch below re-runs against the new one.
     useEffect(() => {
-        if (cache.has(config.endpoint)) return;
+        const onConnection = (e: Event) => {
+            const next = Boolean((e as CustomEvent<{connected?: boolean}>).detail?.connected);
+            cache.delete(config.endpoint);
+            setData(null);
+            setAddError(null);
+            setPlanLimitOpen(false);
+            setConnected(next);
+        };
+        window.addEventListener(CONNECTION_EVENT, onConnection);
+        return () => window.removeEventListener(CONNECTION_EVENT, onConnection);
+    }, [config.endpoint]);
+
+    useEffect(() => {
+        if (!connected || cache.has(config.endpoint)) return;
+        // A response that lands after the connection changed belongs to the old
+        // project — ignore it rather than cache it.
+        let stale = false;
         const fetch = async () => {
             const res = await request('GET');
-            if (res) {
+            if (res && !stale) {
                 cache.set(config.endpoint, res);
                 setData(res);
             }
         };
         fetch();
-    }, [request, config.endpoint]);
+        return () => {
+            stale = true;
+        };
+    }, [request, config.endpoint, connected]);
 
     const actions = (
         <div className="wp-panel-languages-table__actions">
@@ -364,7 +399,10 @@ export function LanguagesTableField({fieldId, config}: Props) {
         </>
     );
 
-    if (loading && !data) {
+    // Disconnected: `data` was dropped and the fetch is gated, so the ordinary
+    // empty state below renders at once — the same screen Refresh used to
+    // reach — never the old project's rows.
+    if (connected && loading && !data) {
         return (
             <div className="wp-panel-languages-table">
                 <div className="wp-panel-languages-table__loading">Loading languages...</div>
@@ -372,7 +410,7 @@ export function LanguagesTableField({fieldId, config}: Props) {
         );
     }
 
-    if (error) {
+    if (connected && error) {
         return (
             <div className="wp-panel-languages-table">
                 {actions}
