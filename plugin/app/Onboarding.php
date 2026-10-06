@@ -580,11 +580,15 @@ class Onboarding
             }
             .uvly-connect__btn:hover { transform: translateY(-2px); color: #fff; box-shadow: 0 18px 36px -10px rgba(101, 12, 223, 0.75); }
             .uvly-connect__btn:active { transform: translateY(0); }
-            /* WP admin's global `a:focus { border-radius: 2px }` squares the button
-               on click/focus — keep our radius and give a proper focus ring. */
+            /* WP admin's global `a:focus`/`a:active` styles (blue text, 2px blue
+               box-shadow ring, 2px radius) override the button on click/focus —
+               keep our colors, shadow and radius, and give a proper focus ring. */
             .uvly-connect__btn:focus,
             .uvly-connect__btn:focus-visible,
-            .uvly-connect__btn:active { border-radius: 12px; }
+            .uvly-connect__btn:active {
+                color: #fff; border-radius: 12px; outline: none;
+                box-shadow: 0 12px 28px -10px rgba(101, 12, 223, 0.65);
+            }
             .uvly-connect__btn:focus-visible { outline: 2px solid #7c3aed; outline-offset: 3px; }
             .uvly-connect__close:focus,
             .uvly-connect__close:focus-visible { border-radius: 6px; }
