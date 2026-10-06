@@ -246,10 +246,10 @@ You can reach our support team through the [Universally dashboard](https://app.u
 == Changelog ==
 
 = 1.0.10 =
-* New: Sites that aren't connected yet get a new General tab: what Universally does, popular languages to start with, the three setup steps, and one button to launch the setup wizard. Sites installed through All in One SEO see wording that picks up from that setup.
-* New: When Universally rejects the saved API key, the General tab says so and offers to reconnect, check the key again, enter a new one, or remove it. If the API can't be reached, the tab stays as it is and shows a banner with a Check again button.
-* Improvement: The Languages card is easier to start with. With no languages yet, it shows your site's language and four popular languages you can add in one click. Once you have some, suggestions shrink to a short row under the table.
-* Fix: The Welcome screen's buttons no longer turn blue when clicked.
+* New: A redesigned General tab that guides new sites through setup.
+* Improvement: A smoother connection flow, with clear steps to reconnect when the API key stops working.
+* Improvement: An easier way to add your first languages.
+* Fix: Welcome screen buttons no longer turn blue when clicked.
 
 = 1.0.9 =
 * New: An SEO setting under Preferences to choose your hreflang format — region codes (fr-FR, pt-BR) or language only (fr, pt). Pick language only if you keep one translation per language rather than one per country, so it reaches every speaker of that language. Region codes remain the default, so existing sites are unchanged.
