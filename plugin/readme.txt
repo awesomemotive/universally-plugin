@@ -247,7 +247,8 @@ You can reach our support team through the [Universally dashboard](https://app.u
 
 = 1.0.10 =
 * New: A redesigned General tab that guides new sites through setup.
-* Improvement: A smoother connection flow, with clear steps to reconnect when the API key stops working.
+* Improvement: A smoother connection flow, with a translated preview of your homepage during setup and clear steps to reconnect when the API key stops working.
+* Fix: Several connection fixes, including the setup flow's close button returning you to the settings page and the Languages list updating right after you disconnect.
 * Improvement: An easier way to add your first languages.
 * Fix: Welcome screen buttons no longer turn blue when clicked.
 
