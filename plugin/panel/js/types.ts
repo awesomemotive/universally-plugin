@@ -23,6 +23,9 @@ export interface SectionItem {
   default?: 'open' | 'closed';
   showSave?: boolean;  // Show save button in section (default: true)
   capability?: string; // Required capability to view/edit fields in this section
+  // Render the section's fields directly, without the collapsible card chrome
+  // (header, border, padding) or field label column. For full-width custom layouts.
+  bare?: boolean;
   // Internal fields added by PHP parseSchema
   _tab?: string;
 }

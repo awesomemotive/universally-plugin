@@ -7,9 +7,11 @@ import { formatInline } from '../utils/formatInline';
 interface FieldProps {
   fieldId: string;
   config: FieldItem;
+  /** Render only the field component — no label column, description or error row. */
+  bare?: boolean;
 }
 
-export function Field({ fieldId, config }: FieldProps) {
+export function Field({ fieldId, config, bare = false }: FieldProps) {
   const { getValue, setValue, state, panelData } = usePanelState();
   const visible = useConditions(config.conditions);
 
@@ -27,6 +29,20 @@ export function Field({ fieldId, config }: FieldProps) {
         <div className="wp-panel-field__error">
           Unknown field type: {config.type}
         </div>
+      </div>
+    );
+  }
+
+  if (bare) {
+    return (
+      <div className={`wp-panel-field wp-panel-field--bare wp-panel-field--${config.type}`}>
+        <FieldComponent
+          fieldId={fieldId}
+          config={config}
+          value={getValue(fieldId)}
+          onChange={(value: unknown) => setValue(fieldId, value)}
+          error={error}
+        />
       </div>
     );
   }
