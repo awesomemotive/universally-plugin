@@ -299,7 +299,7 @@ if ($universally_is_connected && $universally_status_name === \Universally\KeySt
         $universally_landing_base + [
             'id' => 'general_landing',
             'type' => 'general-landing',
-            'docsUrl' => 'https://universally.com/docs/',
+            'docsUrl' => 'https://universally.com/docs/install-on-wordpress/',
             'assetsUrl' => esc_url_raw(UNIVERSALLY_PLUGIN_URI . 'assets/general/'),
             'isAioseo' => $universally_is_aioseo,
             'heroDismissed' => $universally_hero_dismissed,
