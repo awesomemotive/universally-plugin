@@ -416,6 +416,12 @@
   }
 }
 
+.wp-panel-section--bare .wp-panel-field--bare {
+  display: block;
+  padding: 0;
+  border-bottom: 0;
+}
+
 .wp-panel-section--untitled .wp-panel-section__body {
   padding: var(--wp-panel-spacing);
 }

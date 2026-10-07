@@ -1,0 +1,880 @@
+// General tab landing screen, shown while the site isn't connected.
+// Hero card, two info cards side by side, and a closing CTA card.
+
+.wp-panel-general-landing {
+  --gl-primary: #650cdf;
+  --gl-primary-hover: #5509be;
+  --gl-heading: #1d1b1f;
+  --gl-text: rgba(29, 27, 31, 0.7);
+  --gl-text-strong: rgba(29, 27, 31, 0.9);
+  --gl-border: #e8e8eb;
+  --gl-divider: rgba(24, 36, 69, 0.1);
+  --gl-row-divider: #f1f1f1;
+  --gl-shadow: 0 2px 2px #e6e9f0;
+  --gl-gap: 26px;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--gl-gap);
+  color: var(--gl-heading);
+
+  // Zero-specificity reset so the element rules below can set margins.
+  :where(h2, h3, p) {
+    margin: 0;
+  }
+
+  // ---- Shared ------------------------------------------------------------
+
+  &__card {
+    position: relative;
+    background: #fff;
+    border: 1px solid var(--gl-border);
+    border-radius: 4px;
+    box-shadow: var(--gl-shadow);
+  }
+
+  &__text {
+    font-size: 14px;
+    line-height: 26px;
+    color: var(--gl-text);
+
+    strong {
+      font-weight: 600;
+      color: var(--gl-heading);
+    }
+  }
+
+  &__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 54px;
+    padding: 0 22px;
+    border-radius: 4px;
+    background: var(--gl-primary);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+
+    // WP admin's `a:focus`/`a:active` (blue text + box-shadow ring) would
+    // otherwise win on click.
+    &:hover,
+    &:focus,
+    &:active {
+      background: var(--gl-primary-hover);
+      color: #fff;
+      box-shadow: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--gl-primary);
+      outline-offset: 2px;
+      box-shadow: none;
+    }
+  }
+
+  &__button-icon {
+    flex-shrink: 0;
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--gl-primary);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover,
+    &:focus {
+      color: var(--gl-primary-hover);
+      text-decoration: underline;
+    }
+  }
+
+  // ---- Hero --------------------------------------------------------------
+
+  &__hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 464px);
+    align-items: center;
+    gap: 40px;
+    padding: 56px 40px 48px 58px;
+  }
+
+  &__dismiss {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #8c8f94;
+    cursor: pointer;
+
+    .dashicons {
+      width: 20px;
+      height: 20px;
+      font-size: 20px;
+    }
+
+    &:hover,
+    &:focus {
+      color: var(--gl-heading);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--gl-primary);
+      outline-offset: 0;
+    }
+  }
+
+  &__hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    margin-bottom: -8px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    color: var(--gl-primary);
+  }
+
+  &__hero-title {
+    margin-bottom: 4px;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.5px;
+    color: var(--gl-heading);
+  }
+
+  &__hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px 20px;
+    margin-top: 8px;
+  }
+
+  // Fixed-ratio box so the layout holds even before the image is exported.
+  &__hero-media {
+    width: 100%;
+    aspect-ratio: 1520 / 1000;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #f3edfd;
+
+    video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  // ---- Two info cards ----------------------------------------------------
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--gl-gap);
+    align-items: stretch;
+  }
+
+  &__panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 26px 30px 24px;
+    border-bottom: 1px solid var(--gl-divider);
+  }
+
+  &__card-title {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.34px;
+    color: var(--gl-heading);
+  }
+
+  &__card-subtitle {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 24px;
+    color: var(--gl-text);
+  }
+
+  // Pinned to the bottom so both cards line up whatever their content height.
+  &__card-footer {
+    display: flex;
+    align-items: center;
+    height: 69px;
+    margin-top: auto;
+    padding: 0 30px;
+    border-top: 1px solid var(--gl-divider);
+  }
+
+  &__footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--gl-primary);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+
+    img {
+      display: block;
+      flex-shrink: 0;
+    }
+
+    &:hover,
+    &:focus {
+      color: var(--gl-primary-hover);
+      text-decoration: underline;
+    }
+  }
+
+  // Language suggestions
+
+  &__languages {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin: 0;
+    padding: 18px 20px 24px 30px;
+    list-style: none;
+  }
+
+  &__language {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0;
+    padding-right: 10px;
+
+    & + & {
+      padding-top: 15px;
+      border-top: 1px solid var(--gl-row-divider);
+    }
+  }
+
+  &__language-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  &__language-name-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+  }
+
+  // Flags are 18×13; Japan's is wider (20.25×14) and white, so it's clipped
+  // into the same box with a hairline border to stay visible.
+  &__flag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 13px;
+    margin-right: 1px;
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px #f0f0f0;
+
+    img {
+      display: block;
+      flex-shrink: 0;
+      max-width: none;
+    }
+  }
+
+  &__language-name {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    color: var(--gl-text-strong);
+  }
+
+  &__pill {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--gl-text-strong);
+
+    &--rose {
+      background: #fbe8e6;
+    }
+
+    &--blue {
+      background: #e6f4fb;
+    }
+  }
+
+  &__language-users {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 18px;
+    color: var(--gl-text-strong);
+  }
+
+  &__add {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    color: var(--gl-primary);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+
+    img {
+      display: block;
+    }
+
+    &:hover,
+    &:focus {
+      color: var(--gl-primary-hover);
+      text-decoration: underline;
+    }
+  }
+
+  // Steps
+
+  &__steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 0;
+    padding: 24px 30px;
+    list-style: none;
+  }
+
+  &__step {
+    margin: 0;
+
+    & + & {
+      padding-top: 16px;
+      border-top: 1px solid var(--gl-divider);
+    }
+  }
+
+  &__step-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: #edebf8;
+    color: #2300bf;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  &__step-title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    color: var(--gl-text-strong);
+  }
+
+  &__step-desc {
+    margin-top: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 22px;
+    color: var(--gl-text);
+  }
+
+  // ---- Bottom CTA --------------------------------------------------------
+
+  &__cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    text-align: center;
+  }
+
+  &__cta-media {
+    width: 345px;
+    max-width: 100%;
+    aspect-ratio: 345 / 149;
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  }
+
+  &__cta-title {
+    margin-top: 22px;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--gl-heading);
+  }
+
+  &__cta-subtitle {
+    margin: 10px 0 24px;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--gl-text);
+  }
+
+  &__manual-toggle {
+    margin-top: 16px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #646970;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+
+    &:hover,
+    &:focus {
+      color: var(--gl-heading);
+      text-decoration-color: currentColor;
+    }
+  }
+
+  &__manual {
+    width: 100%;
+    max-width: 520px;
+    margin-top: 20px;
+    text-align: left;
+
+    .wp-panel-api-key__input {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  // ---- Broken connection: shared ----------------------------------------
+  // Reconnect mode (key rejected) and banner mode (API unreachable).
+
+  // `__button` is styled for links; these modifiers also run on <button>.
+  button#{&}__button {
+    border: 0;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  &__button--ghost {
+    padding: 0 14px;
+    background: transparent;
+    color: var(--gl-primary);
+    font-size: 15px;
+
+    &:focus,
+    &:active {
+      background: transparent;
+      color: var(--gl-primary);
+    }
+
+    &:hover {
+      background: #f4eefe;
+      color: var(--gl-primary);
+    }
+  }
+
+  &__button--secondary {
+    height: 40px;
+    padding: 0 18px;
+    background: #fff;
+    color: var(--gl-heading);
+    font-size: 14px;
+    box-shadow: inset 0 0 0 1px #c3c4c7;
+
+    &:focus,
+    &:active {
+      background: #fff;
+      color: var(--gl-heading);
+      box-shadow: inset 0 0 0 1px #c3c4c7;
+    }
+
+    &:hover {
+      background: #fff;
+      color: var(--gl-primary);
+      box-shadow: inset 0 0 0 1px var(--gl-primary);
+    }
+
+    &:focus-visible {
+      box-shadow: inset 0 0 0 1px #c3c4c7;
+    }
+  }
+
+  &__button[aria-disabled='true'] {
+    opacity: 0.7;
+    cursor: progress;
+  }
+
+  &__spin {
+    animation: gl-spin 0.9s linear infinite;
+  }
+
+  &__text-button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--gl-primary);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.5;
+    cursor: pointer;
+
+    &:hover,
+    &:focus {
+      color: var(--gl-primary-hover);
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--gl-primary);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+
+    &--quiet {
+      color: var(--gl-text);
+      font-weight: 400;
+
+      &:hover,
+      &:focus {
+        color: var(--gl-heading);
+      }
+    }
+
+    &--danger {
+      color: #8a2424;
+
+      &:hover,
+      &:focus {
+        color: #8a2424;
+      }
+    }
+
+    &[aria-disabled='true'],
+    &:disabled {
+      opacity: 0.65;
+      cursor: progress;
+    }
+  }
+
+  &__toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border: 1px solid #b7ebcb;
+    border-radius: 4px;
+    background: #ecfdf3;
+    color: #0f7a3d;
+    font-size: 13px;
+    font-weight: 500;
+
+    svg {
+      flex-shrink: 0;
+    }
+  }
+
+  // ---- Reconnect mode (key rejected) ------------------------------------
+
+  &__hero--reconnect {
+    .wp-panel-general-landing__hero-content {
+      gap: 16px;
+    }
+
+    .wp-panel-general-landing__hero-title {
+      margin-bottom: 0;
+      font-size: 26px;
+      line-height: 1.25;
+    }
+  }
+
+  &__hero-text {
+    max-width: 470px;
+  }
+
+  // "Connection lost": a red pill with a pulsing dot.
+  &__alert-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 10px 4px 12px;
+    border-radius: 999px;
+    background: #fef3f2;
+    color: #b42318;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+  }
+
+  &__alert-dot {
+    position: relative;
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+
+    // Two staggered rings that grow and fade.
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: currentColor;
+      animation: gl-pulse 2s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+    }
+
+    &::after {
+      animation-delay: 1s;
+    }
+  }
+
+  &__hero-actions--tight {
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-top: 6px;
+
+    .wp-panel-general-landing__button {
+      flex: none;
+      white-space: nowrap;
+    }
+  }
+
+  &__keyline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    margin-top: -4px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--gl-text);
+  }
+
+  &__keyline-key {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  &__keyline-bad {
+    color: #b42318;
+    font-weight: 600;
+  }
+
+  &__keyline-sep {
+    opacity: 0.5;
+  }
+
+  &__error {
+    font-size: 13px;
+    color: #b42318;
+  }
+
+  &__hero-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 20px;
+    align-self: stretch;
+    padding-top: 14px;
+    border-top: 1px solid var(--gl-border);
+  }
+
+  &__confirm {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+
+  &__manual--inline {
+    margin-top: -4px;
+  }
+
+  &__card-header--compact {
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+
+  // Languages placeholder while the site is disconnected.
+  &__locked {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 26px 30px;
+    font-size: 13px;
+    color: var(--gl-text);
+  }
+
+  &__locked-icon {
+    flex-shrink: 0;
+  }
+
+  // ---- Banner mode (API unreachable) -------------------------------------
+
+  &__banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 18px;
+    border: 1px solid #f6dfa4;
+    border-radius: 4px;
+    background: #fff8e6;
+  }
+
+  &__banner-text {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex: 1 1 360px;
+    min-width: 0;
+  }
+
+  &__banner-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: #9a5b00;
+  }
+
+  &__banner-title {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gl-heading);
+  }
+
+  &__banner-desc {
+    font-size: 13px;
+    color: var(--gl-text);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &__spin {
+      animation: none;
+    }
+
+    // No pulse: a static soft halo instead.
+    &__alert-dot {
+      box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.2);
+
+      &::before,
+      &::after {
+        animation: none;
+        opacity: 0;
+      }
+    }
+  }
+
+  @media (max-width: 520px) {
+    &__hero-actions--tight {
+      flex-wrap: wrap;
+    }
+  }
+
+  // ---- Narrow screens ----------------------------------------------------
+
+  @media (max-width: 959px) {
+    &__hero {
+      grid-template-columns: 1fr;
+      padding: 48px 24px 32px;
+    }
+
+    &__hero-media {
+      max-width: 464px;
+    }
+
+    &__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 600px) {
+    &__card-header,
+    &__steps {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+
+    &__languages {
+      padding-left: 20px;
+      padding-right: 10px;
+    }
+
+    &__card-footer {
+      padding: 0 20px;
+    }
+  }
+}
+
+@keyframes gl-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+
+  100% {
+    transform: scale(3.6);
+    opacity: 0;
+  }
+}
+
+@keyframes gl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

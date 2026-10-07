@@ -9,6 +9,9 @@ if (!defined('ABSPATH')) {
 // and REST), so doing it unconditionally would fetch site config on every request.
 $universally_connect_url = '';
 $universally_project_id  = '';
+// Stored key status. Off the settings page assume a stored key works (no API
+// call), so REST saves and the front end always see the connected schema.
+$universally_key_status = \Universally\KeyStatus::assumed();
 if (
     is_admin()
     && isset($_GET['page']) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -24,6 +27,9 @@ if (
     // Project id lets the Languages table deep-link into the dashboard
     // ({app}/projects/{id}/languages). Empty when not connected.
     $universally_project_id = universally_get_site_id();
+    // Live (cached for 5 minutes) check, so a rejected key or an API outage
+    // gets its own General tab instead of the normal connected one.
+    $universally_key_status = \Universally\KeyStatus::get();
 }
 
 // "Dashboard" header link: deep-link straight to the connected project when we
@@ -61,39 +67,100 @@ if (get_option('permalink_structure') === '') {
  */
 $universally_panel_notices = apply_filters('universally_panel_notices', $universally_panel_notices);
 
-return [
-    'id' => 'universally_settings',
-    'title' => 'Universally',
-    'logoPath' => '/assets/logo-full-dark.svg',
-    'headerActions' => [
+// General tab. Connected sites get the connection status + languages table.
+// Sites that aren't connected yet get a single landing screen (hero, language
+// suggestions, steps, CTA) that funnels into the hosted connect flow; manual
+// key entry is still reachable from inside it. "Connected" means an API key is
+// stored — the same test Onboarding and the activation notice use.
+//
+// A stored key the API rejects gets the landing hero in "reconnect" mode
+// instead; one we couldn't check (API down) keeps the connected tab with a
+// banner on top. See \Universally\KeyStatus.
+$universally_is_connected = universally_get_api_key() !== '';
+$universally_status_name  = $universally_key_status['status'];
+
+// Shared by the landing (all modes) and the status banner.
+$universally_landing_base = [
+    'label' => '',
+    'size' => 'full',
+    // Nothing to save — the landing only links out and calls its own endpoints.
+    'independent' => true,
+    'connectUrl' => $universally_connect_url,
+    'heroVideoUrl' => 'https://cdn.universally.com/videos/concept-3d-checklist.mp4',
+    // api-key endpoint: manual key entry, "Check again" (?fresh=1), key removal.
+    'apiKeyEndpoint' => 'universally/v1/validate-api-key',
+    'apiKeyPlaceholder' => __('64-character API key', 'universally-language-translation-multilingual-tool'),
+];
+
+// Strings for "Check again" (reconnect + banner modes).
+$universally_check_strings = [
+    'checkAgain' => __('Check again', 'universally-language-translation-multilingual-tool'),
+    'checking' => __('Checking…', 'universally-language-translation-multilingual-tool'),
+    'checkedJustNow' => __('checked just now', 'universally-language-translation-multilingual-tool'),
+    'checkFailed' => __('Couldn’t check the connection right now. Please try again.', 'universally-language-translation-multilingual-tool'),
+    'recovered' => __('Your API key works again. Reloading…', 'universally-language-translation-multilingual-tool'),
+];
+
+if ($universally_is_connected && $universally_status_name === \Universally\KeyStatus::REJECTED) {
+    $universally_general_items = [
         [
-            'icon' => 'dashicons-admin-site',
-            'label' => __('Dashboard', 'universally-language-translation-multilingual-tool'),
-            // Deep-links to the connected project when known, else the app root.
-            'href' => $universally_dashboard_url,
+            'type' => 'section',
+            'id' => 'general_reconnect_section',
+            'label' => __('Connection lost', 'universally-language-translation-multilingual-tool'),
+            'showSave' => false,
+            'bare' => true,
         ],
-        [
-            'icon' => 'dashicons-book',
-            'label' => __('Docs', 'universally-language-translation-multilingual-tool'),
-            'href' => 'https://universally.com/docs/',
+        $universally_landing_base + [
+            'id' => 'general_landing',
+            'type' => 'general-landing',
+            'mode' => 'reconnect',
+            'maskedKey' => \Universally\KeyStatus::shortMask(universally_get_api_key()),
+            'statusMessage' => $universally_key_status['message'],
+            'checkedLabel' => \Universally\KeyStatus::checkedLabel($universally_key_status['checked_at']),
+            // A key set via the UNIVERSALLY_API_KEY constant can't be replaced
+            // or removed from here.
+            'keyLocked' => defined('UNIVERSALLY_API_KEY'),
+            'strings' => $universally_check_strings + [
+                'alertPill' => __('Connection lost', 'universally-language-translation-multilingual-tool'),
+                'reconnectTitle' => __('Reconnect your site to keep translating', 'universally-language-translation-multilingual-tool'),
+                'reconnectText' => __('Universally no longer accepts the API key saved on this site, so translation has stopped. Reconnecting takes about a minute and brings you right back here.', 'universally-language-translation-multilingual-tool'),
+                'reconnect' => __('Reconnect to Universally', 'universally-language-translation-multilingual-tool'),
+                'newKeyLabel' => __('Have a new API key? Enter it', 'universally-language-translation-multilingual-tool'),
+                'removeKey' => __('Remove saved key', 'universally-language-translation-multilingual-tool'),
+                'removeConfirm' => __('Yes, remove it', 'universally-language-translation-multilingual-tool'),
+                'removeCancel' => __('Cancel', 'universally-language-translation-multilingual-tool'),
+                'removing' => __('Removing…', 'universally-language-translation-multilingual-tool'),
+                'removeFailed' => __('Couldn’t remove the key. Please try again.', 'universally-language-translation-multilingual-tool'),
+                'languagesTitle' => __('Languages', 'universally-language-translation-multilingual-tool'),
+                'languagesLocked' => __('Your languages show here again once the site is reconnected.', 'universally-language-translation-multilingual-tool'),
+            ],
         ],
-    ],
-    // Re-index so this always JSON-encodes as an array, even after filtering.
-    'notices' => array_values($universally_panel_notices),
-    'menu' => [
-        'location' => 'toplevel',
-        'icon' => 'dashicons-admin-generic',
-        'iconPath' => '/assets/menu-icon.svg',
-        // Mirror the panel's tabs as sidebar submenu items (General, Language
-        // Switcher, Styling, Settings).
-        'submenuTabs' => true,
-    ],
-    'schema' => [
-        [
-            'type' => 'tab',
-            'id' => 'general_tab',
-            'label' => __('General', 'universally-language-translation-multilingual-tool'),
-        ],
+    ];
+} elseif ($universally_is_connected) {
+    $universally_general_items = [];
+
+    if ($universally_status_name === \Universally\KeyStatus::UNKNOWN) {
+        $universally_general_items[] = [
+            'type' => 'section',
+            'id' => 'general_status_section',
+            'label' => __('Connection check', 'universally-language-translation-multilingual-tool'),
+            'showSave' => false,
+            'bare' => true,
+        ];
+        $universally_general_items[] = $universally_landing_base + [
+            'id' => 'general_status_banner',
+            'type' => 'general-landing',
+            'mode' => 'banner',
+            'strings' => $universally_check_strings + [
+                'bannerTitle' => __('Couldn’t reach Universally to check your connection', 'universally-language-translation-multilingual-tool'),
+                'bannerText' => \Universally\KeyStatus::lastCheckedLabel($universally_key_status['checked_at']),
+                'bannerTextJustNow' => __('Your site keeps its current setup. Last checked just now.', 'universally-language-translation-multilingual-tool'),
+                'bannerRecovered' => __('Universally is reachable again. Your API key works.', 'universally-language-translation-multilingual-tool'),
+            ],
+        ];
+    }
+
+    $universally_general_items = array_merge($universally_general_items, [
         [
             'type' => 'section',
             'id' => 'api_section',
@@ -144,7 +211,204 @@ return [
             // Initial connection state. The api-key field's Connect/Disconnect
             // keeps the table in sync afterwards without a reload.
             'connected' => !empty(universally_get_api_key()),
+            // Count strings take a number (%d); both plural forms are passed
+            // and picked client-side, since the count is only known there.
+            'strings' => [
+                'countNone' => __('None yet', 'universally-language-translation-multilingual-tool'),
+                /* translators: %d: number of languages just added. */
+                'addedOne' => _n('%d added', '%d added', 1, 'universally-language-translation-multilingual-tool'),
+                /* translators: %d: number of languages just added. */
+                'addedMany' => _n('%d added', '%d added', 2, 'universally-language-translation-multilingual-tool'),
+                /* translators: %d: number of live languages, the source language included. */
+                'liveOne' => _n('%d live', '%d live', 1, 'universally-language-translation-multilingual-tool'),
+                /* translators: %d: number of live languages, the source language included. */
+                'liveMany' => _n('%d live', '%d live', 2, 'universally-language-translation-multilingual-tool'),
+                'refresh' => __('Refresh languages', 'universally-language-translation-multilingual-tool'),
+                'manage' => __('Manage in dashboard', 'universally-language-translation-multilingual-tool'),
+                'opensInNewTab' => __('(opens in a new tab)', 'universally-language-translation-multilingual-tool'),
+                'loading' => __('Loading languages…', 'universally-language-translation-multilingual-tool'),
+                /* translators: %s: the site's source language name, e.g. English. */
+                'sourceIs' => __('Your site is in %s', 'universally-language-translation-multilingual-tool'),
+                'emptyTitle' => __('Pick the first language to translate into', 'universally-language-translation-multilingual-tool'),
+                'emptyText' => __('Universally translates your whole site into it and publishes it under its own URL, like /es/. Most sites start with one or two.', 'universally-language-translation-multilingual-tool'),
+                'browseAll' => __('Browse all 110+ languages', 'universally-language-translation-multilingual-tool'),
+                /* translators: %s: number of millions, e.g. 485. */
+                'speakersMillion' => __('%s million speakers', 'universally-language-translation-multilingual-tool'),
+                /* translators: %s: number of billions, e.g. 1.2. */
+                'speakersBillion' => __('%s billion speakers', 'universally-language-translation-multilingual-tool'),
+                'add' => __('Add', 'universally-language-translation-multilingual-tool'),
+                'adding' => __('Adding…', 'universally-language-translation-multilingual-tool'),
+                'added' => __('Added', 'universally-language-translation-multilingual-tool'),
+                /* translators: %s: language name, e.g. Spanish. */
+                'addLanguage' => __('Add %s', 'universally-language-translation-multilingual-tool'),
+                'addFailed' => __('Could not add the language. Please try again.', 'universally-language-translation-multilingual-tool'),
+                'tagHighPurchasingPower' => __('High purchasing power', 'universally-language-translation-multilingual-tool'),
+                'tagFastGrowingMarket' => __('Fast-growing market', 'universally-language-translation-multilingual-tool'),
+                'colLanguage' => __('Language', 'universally-language-translation-multilingual-tool'),
+                'colUrl' => __('URL', 'universally-language-translation-multilingual-tool'),
+                'colStatus' => __('Status', 'universally-language-translation-multilingual-tool'),
+                'source' => __('Source', 'universally-language-translation-multilingual-tool'),
+                'statusLive' => __('Live', 'universally-language-translation-multilingual-tool'),
+                'statusDisabled' => __('Disabled', 'universally-language-translation-multilingual-tool'),
+                'copyUrl' => __('Copy URL', 'universally-language-translation-multilingual-tool'),
+                'copied' => __('Copied!', 'universally-language-translation-multilingual-tool'),
+                'suggestedTitle' => __('Suggested next', 'universally-language-translation-multilingual-tool'),
+                'suggestedText' => __('Popular with sites like yours', 'universally-language-translation-multilingual-tool'),
+                'allLanguages' => __('All languages', 'universally-language-translation-multilingual-tool'),
+                'upgradeLabel' => __('Upgrade to add more languages', 'universally-language-translation-multilingual-tool'),
+                'upgradeTitle' => __('Upgrade to add more languages and reach a wider audience', 'universally-language-translation-multilingual-tool'),
+                'upgradeText' => __('You’ve reached your plan’s language limit. Upgrade to keep translating into new markets and grow your global reach.', 'universally-language-translation-multilingual-tool'),
+                'upgradeCta' => __('Upgrade plan & unlock more languages', 'universally-language-translation-multilingual-tool'),
+                'upgradeBonus' => __('New languages go live automatically — translation starts the moment you upgrade.', 'universally-language-translation-multilingual-tool'),
+                'maybeLater' => __('Maybe later', 'universally-language-translation-multilingual-tool'),
+                'close' => __('Close', 'universally-language-translation-multilingual-tool'),
+            ],
+            // Display names for the one-click suggestions, keyed by the
+            // backend variant code the component sends when adding.
+            'languageNames' => [
+                'es' => __('Spanish', 'universally-language-translation-multilingual-tool'),
+                'zh-hans' => __('Chinese (Simplified)', 'universally-language-translation-multilingual-tool'),
+                'ar' => __('Arabic', 'universally-language-translation-multilingual-tool'),
+                'pt-br' => __('Portuguese (Brazil)', 'universally-language-translation-multilingual-tool'),
+                'ja' => __('Japanese', 'universally-language-translation-multilingual-tool'),
+                'de' => __('German', 'universally-language-translation-multilingual-tool'),
+                'fr' => __('French', 'universally-language-translation-multilingual-tool'),
+                'it' => __('Italian', 'universally-language-translation-multilingual-tool'),
+                'nl' => __('Dutch', 'universally-language-translation-multilingual-tool'),
+            ],
         ],
+    ]);
+} else {
+    // Set by partner installers (e.g. AIOSEO's setup wizard); see
+    // Onboarding::INSTALLED_BY_OPTION.
+    $universally_installed_by = get_option('universally_installed_by', '');
+    $universally_is_aioseo    = is_string($universally_installed_by) && strpos(strtolower($universally_installed_by), 'aioseo') === 0;
+
+    // Per-user: dismissing the hero only hides it for the admin who closed it.
+    $universally_hero_dismissed = (bool) get_user_meta(get_current_user_id(), \Universally\RestApi::HERO_DISMISSED_META, true);
+
+    $universally_general_items = [
+        [
+            'type' => 'section',
+            'id' => 'general_landing_section',
+            'label' => __('Get started', 'universally-language-translation-multilingual-tool'),
+            'showSave' => false,
+            // Render the landing cards directly, without the section card chrome.
+            'bare' => true,
+        ],
+        $universally_landing_base + [
+            'id' => 'general_landing',
+            'type' => 'general-landing',
+            'docsUrl' => 'https://universally.com/docs/',
+            'assetsUrl' => esc_url_raw(UNIVERSALLY_PLUGIN_URI . 'assets/general/'),
+            'isAioseo' => $universally_is_aioseo,
+            'heroDismissed' => $universally_hero_dismissed,
+            'dismissEndpoint' => 'universally/v1/dismiss-general-hero',
+            'strings' => [
+                'heroEyebrow' => __('Installed with All in One SEO', 'universally-language-translation-multilingual-tool'),
+                'heroTitleAioseo' => __('Take your SEO global with Universally', 'universally-language-translation-multilingual-tool'),
+                'heroTitle' => __('Take your site global with Universally', 'universally-language-translation-multilingual-tool'),
+                'heroIntroAioseo' => __('You enabled multilingual SEO during your **All in One SEO** setup. Universally takes it from here.', 'universally-language-translation-multilingual-tool'),
+                'heroIntro' => __('Reach readers in their own language. Universally translates your site and handles multilingual SEO for you.', 'universally-language-translation-multilingual-tool'),
+                'heroBody' => __('Choose from 110+ languages and we’ll translate your entire site, then automatically handle the translated URLs, SEO metadata and hreflang needed to help each version get discovered in search.', 'universally-language-translation-multilingual-tool'),
+                'launchWizard' => __('Launch the Setup Wizard', 'universally-language-translation-multilingual-tool'),
+                'readGuide' => __('Read The Setup Guide', 'universally-language-translation-multilingual-tool'),
+                'dismiss' => __('Dismiss', 'universally-language-translation-multilingual-tool'),
+                'opensInNewTab' => __('(opens in a new tab)', 'universally-language-translation-multilingual-tool'),
+                'audienceTitle' => __('Reach more of your global audience', 'universally-language-translation-multilingual-tool'),
+                'audienceSubtitle' => __('Every language you add opens your site to a new market.', 'universally-language-translation-multilingual-tool'),
+                'add' => __('Add', 'universally-language-translation-multilingual-tool'),
+                'browseLanguages' => __('Browse All 110+ Languages', 'universally-language-translation-multilingual-tool'),
+                'stepsTitle' => __('Go global in minutes', 'universally-language-translation-multilingual-tool'),
+                'stepsSubtitle' => __('Translate your site, set up multilingual SEO and go live in just a few steps.', 'universally-language-translation-multilingual-tool'),
+                'getStarted' => __('Get Started', 'universally-language-translation-multilingual-tool'),
+                'ctaTitle' => __('Ready to reach a global audience?', 'universally-language-translation-multilingual-tool'),
+                'ctaSubtitle' => __('Free to try. No card required.', 'universally-language-translation-multilingual-tool'),
+                'manualLabel' => __('Already have an API key? Enter it manually', 'universally-language-translation-multilingual-tool'),
+            ],
+            'languages' => [
+                [
+                    'flag' => 'es.svg',
+                    'name' => __('Spanish', 'universally-language-translation-multilingual-tool'),
+                    'tag' => __('High Purchasing Power', 'universally-language-translation-multilingual-tool'),
+                    'tone' => 'rose',
+                    'users' => __('485 Million Users', 'universally-language-translation-multilingual-tool'),
+                ],
+                [
+                    'flag' => 'de.svg',
+                    'name' => __('German', 'universally-language-translation-multilingual-tool'),
+                    'tag' => __('Fast Growing Market', 'universally-language-translation-multilingual-tool'),
+                    'tone' => 'blue',
+                    'users' => __('95 Million Users', 'universally-language-translation-multilingual-tool'),
+                ],
+                [
+                    'flag' => 'fr.svg',
+                    'name' => __('French', 'universally-language-translation-multilingual-tool'),
+                    'tag' => __('High Purchasing Power', 'universally-language-translation-multilingual-tool'),
+                    'tone' => 'rose',
+                    'users' => __('80 Million Users', 'universally-language-translation-multilingual-tool'),
+                ],
+                [
+                    'flag' => 'jp.svg',
+                    'name' => __('Japanese', 'universally-language-translation-multilingual-tool'),
+                    'tag' => __('High Purchasing Power', 'universally-language-translation-multilingual-tool'),
+                    'tone' => 'rose',
+                    'users' => __('125 Million Users', 'universally-language-translation-multilingual-tool'),
+                ],
+            ],
+            'steps' => [
+                [
+                    'title' => __('Connect Your Site', 'universally-language-translation-multilingual-tool'),
+                    'description' => __('Create your free Universally account to get started.', 'universally-language-translation-multilingual-tool'),
+                ],
+                [
+                    'title' => __('Choose Your Languages', 'universally-language-translation-multilingual-tool'),
+                    'description' => __('Choose from 110+ languages and Universally translates your entire website for you.', 'universally-language-translation-multilingual-tool'),
+                ],
+                [
+                    'title' => __('Go Live', 'universally-language-translation-multilingual-tool'),
+                    'description' => __('Your translated site goes live, search-ready in every language you chose.', 'universally-language-translation-multilingual-tool'),
+                ],
+            ],
+        ],
+    ];
+}
+
+
+return [
+    'id' => 'universally_settings',
+    'title' => 'Universally',
+    'logoPath' => '/assets/logo-full-dark.svg',
+    'headerActions' => [
+        [
+            'icon' => 'dashicons-admin-site',
+            'label' => __('Dashboard', 'universally-language-translation-multilingual-tool'),
+            // Deep-links to the connected project when known, else the app root.
+            'href' => $universally_dashboard_url,
+        ],
+        [
+            'icon' => 'dashicons-book',
+            'label' => __('Docs', 'universally-language-translation-multilingual-tool'),
+            'href' => 'https://universally.com/docs/',
+        ],
+    ],
+    // Re-index so this always JSON-encodes as an array, even after filtering.
+    'notices' => array_values($universally_panel_notices),
+    'menu' => [
+        'location' => 'toplevel',
+        'icon' => 'dashicons-admin-generic',
+        'iconPath' => '/assets/menu-icon.svg',
+        // Mirror the panel's tabs as sidebar submenu items (General, Language
+        // Switcher, Styling, Settings).
+        'submenuTabs' => true,
+    ],
+    'schema' => [
+        [
+            'type' => 'tab',
+            'id' => 'general_tab',
+            'label' => __('General', 'universally-language-translation-multilingual-tool'),
+        ],
+        ...$universally_general_items,
         [
             'type' => 'tab',
             'id' => 'language_switcher_tab',

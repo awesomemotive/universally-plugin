@@ -318,6 +318,32 @@
           "default": true,
           "description": "Always true - field manages its own save"
         },
+        "appUrl": {
+          "type": "string",
+          "description": "Universally app base URL (dashboard and upgrade links)"
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Connected project id; deep-links to its language panel"
+        },
+        "connected": {
+          "type": "boolean",
+          "description": "Initial connection state; the api-key field keeps it in sync"
+        },
+        "strings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Translated UI strings"
+        },
+        "languageNames": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Translated suggestion names, keyed by variant code"
+        },
         "placeholder": {
           "type": "string",
           "description": "Placeholder text for input"
@@ -362,6 +388,86 @@
           ],
           "default": "text",
           "description": "HTML input type"
+        }
+      }
+    },
+    "general-landing": {
+      "properties": {
+        "connectUrl": {
+          "type": "string",
+          "description": "Hosted onboarding URL every call-to-action links to"
+        },
+        "docsUrl": {
+          "type": "string",
+          "description": "Setup guide URL (opens in a new tab)"
+        },
+        "assetsUrl": {
+          "type": "string",
+          "description": "Base URL of the landing images, with trailing slash"
+        },
+        "heroVideoUrl": {
+          "type": "string",
+          "description": "Looping, muted hero video URL"
+        },
+        "isAioseo": {
+          "type": "boolean",
+          "description": "Show the All in One SEO hero copy"
+        },
+        "heroDismissed": {
+          "type": "boolean",
+          "description": "Current user already dismissed the hero card"
+        },
+        "dismissEndpoint": {
+          "type": "string",
+          "description": "REST path that persists the hero dismissal"
+        },
+        "apiKeyEndpoint": {
+          "type": "string",
+          "description": "api-key endpoint used for manual key entry"
+        },
+        "apiKeyPlaceholder": {
+          "type": "string",
+          "description": "Placeholder for the manual key input"
+        },
+        "strings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Translated UI strings"
+        },
+        "languages": {
+          "type": "array",
+          "description": "Suggested languages (flag, name, tag, tone, users)"
+        },
+        "steps": {
+          "type": "array",
+          "description": "Getting-started steps (title, description)"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "landing",
+            "reconnect",
+            "banner"
+          ],
+          "description": "landing (not connected), reconnect (stored key rejected) or banner (key could not be checked)"
+        },
+        "maskedKey": {
+          "type": "string",
+          "description": "Reconnect mode: short masked stored key"
+        },
+        "statusMessage": {
+          "type": "string",
+          "description": "Reconnect mode: why the API rejected the key"
+        },
+        "checkedLabel": {
+          "type": "string",
+          "description": "Reconnect mode: server-formatted time of the last check"
+        },
+        "keyLocked": {
+          "type": "boolean",
+          "description": "Reconnect mode: key comes from the UNIVERSALLY_API_KEY constant, so hide replace/remove"
         }
       }
     }
@@ -524,7 +630,8 @@
         ],
         "default": "text"
       }
-    ]
+    ],
+    "general-landing": []
   },
   "activePanel": "settings",
   "fieldDefaults": {
@@ -587,6 +694,10 @@
       "capability": {
         "type": "string",
         "description": "Required capability to view/edit fields in this section"
+      },
+      "bare": {
+        "type": "boolean",
+        "description": "Render the section's fields without the card chrome, label column or Save button (full-width custom layouts)"
       }
     },
     "required": [

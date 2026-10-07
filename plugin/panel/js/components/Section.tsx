@@ -32,6 +32,18 @@ export function Section({ section, fields }: SectionProps) {
     </div>
   ) : null;
 
+  // Bare section: fields only, no card chrome or Save button — the field owns
+  // its whole layout (e.g. the disconnected General tab landing screen).
+  if (section?.bare) {
+    return (
+      <div className="wp-panel-section wp-panel-section--bare">
+        {fields.map((fieldConfig) => (
+          <Field key={fieldConfig.id} fieldId={fieldConfig.id} config={fieldConfig} bare />
+        ))}
+      </div>
+    );
+  }
+
   // Untitled section: no header, non-collapsible, same body styling
   if (!section) {
     return (
