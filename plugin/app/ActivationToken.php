@@ -160,6 +160,10 @@ class ActivationToken
 
         update_option('universally_api_key', $stash['apiKey']);
         delete_transient($key);
+        // Drop caches built for the previous connection (or the empty language
+        // list cached while disconnected) so the new project shows up at once.
+        delete_transient('universally_site_config');
+        delete_transient('universally_all_languages');
 
         return new WP_REST_Response([
             'success'     => true,

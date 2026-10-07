@@ -16,6 +16,7 @@
 
 use Universally\ActivationToken;
 use Universally\AdminBar;
+use Universally\KeyStatus;
 use Universally\LanguageSwitcher;
 use Universally\Migration;
 use Universally\Onboarding;
@@ -94,5 +95,6 @@ new UnifiedBuffer();
 new LanguageSwitcher();
 new AdminBar();
 new RestApi();
+KeyStatus::registerHooks();
 new ActivationToken();
 new Onboarding();

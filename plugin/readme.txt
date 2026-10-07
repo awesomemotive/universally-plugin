@@ -245,6 +245,13 @@ You can reach our support team through the [Universally dashboard](https://app.u
 
 == Changelog ==
 
+= 1.0.10 =
+* New: A redesigned General tab that guides new sites through setup.
+* Improvement: A smoother connection flow, with a translated preview of your homepage during setup and clear steps to reconnect when the API key stops working.
+* Improvement: An easier way to add your first languages.
+* Fix: Several connection fixes, including the setup flow's close button returning you to the settings page and the Languages list updating right after you disconnect.
+* Fix: Welcome screen buttons no longer turn blue when clicked.
+
 = 1.0.9 =
 * New: An SEO setting under Preferences to choose your hreflang format — region codes (fr-FR, pt-BR) or language only (fr, pt). Pick language only if you keep one translation per language rather than one per country, so it reaches every speaker of that language. Region codes remain the default, so existing sites are unchanged.
 * New: A "Remember visitor's language" toggle under Preferences. It is on by default and keeps the current behavior: opening a translated page stores that language for 30 days and sends the visitor back to it on later visits. Turn it off if your pages don't show a language switcher, since visitors would otherwise have no way back to the original language. Turning it off also clears the cookie the next time a visitor opens one of your original URLs. Developers can override the setting with the `universally_remember_language` filter.

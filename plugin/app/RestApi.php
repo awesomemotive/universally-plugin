@@ -18,6 +18,9 @@ class RestApi
 {
 
     private const NAMESPACE = 'universally/v1';
+
+    /** User meta flag: the General tab hero card was dismissed. */
+    public const HERO_DISMISSED_META = 'universally_general_hero_dismissed';
     private Http $http;
 
     public function __construct()
@@ -59,6 +62,14 @@ class RestApi
                 'callback' => [$this, 'addLanguage'],
                 'permission_callback' => [$this, 'checkPermission'],
             ],
+        ]);
+
+        // Dismiss the General tab hero card for the current user (landing screen
+        // shown while the site isn't connected).
+        register_rest_route(self::NAMESPACE, '/dismiss-general-hero', [
+            'methods' => 'POST',
+            'callback' => [$this, 'dismissGeneralHero'],
+            'permission_callback' => [$this, 'checkPermission'],
         ]);
 
         // Refresh languages cache (called by API server)
@@ -197,27 +208,55 @@ class RestApi
     }
 
     /**
-     * GET /validate-api-key — re-validate the stored API key
+     * POST /dismiss-general-hero — hide the General tab hero card for this user
+     *
+     * Stored per user, so one admin closing it doesn't hide it for the others.
      *
      * @return WP_REST_Response
      */
-    public function getApiKey(): WP_REST_Response
+    public function dismissGeneralHero(): WP_REST_Response
     {
-        $key = get_option('universally_api_key', '');
+        update_user_meta(get_current_user_id(), self::HERO_DISMISSED_META, 1);
 
-        if (empty($key)) {
+        return new WP_REST_Response(['success' => true], 200);
+    }
+
+    /**
+     * GET /validate-api-key — status of the stored API key
+     *
+     * Served from the 5-minute key-status cache unless `fresh=1` is passed
+     * (the "Check again" button), which re-verifies with the API and stores
+     * the new answer. `valid`, `message` and `value` keep their original
+     * meaning; `status` (none|valid|rejected|unknown), `code` and `checked_at`
+     * were added for the broken-connection screens.
+     *
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response
+     */
+    public function getApiKey(WP_REST_Request $request): WP_REST_Response
+    {
+        $key = universally_get_api_key();
+
+        if ($key === '') {
             return new WP_REST_Response([
-                'valid'   => false,
-                'message' => '',
+                'valid'      => false,
+                'message'    => '',
+                'status'     => KeyStatus::NONE,
+                'code'       => '',
+                'checked_at' => 0,
             ], 200);
         }
 
-        $result = $this->verifyKey($key);
+        $fresh  = rest_sanitize_boolean($request->get_param('fresh'));
+        $result = KeyStatus::get($fresh, $this->http);
 
         return new WP_REST_Response([
-            'valid'   => $result['valid'],
-            'message' => $result['message'],
-            'value'   => $this->maskKey($key),
+            'valid'      => $result['valid'],
+            'message'    => $result['message'],
+            'value'      => $this->maskKey($key),
+            'status'     => $result['status'],
+            'code'       => $result['code'],
+            'checked_at' => $result['checked_at'],
         ], 200);
     }
 
@@ -271,6 +310,13 @@ class RestApi
 
         if ($result['valid']) {
             update_option('universally_api_key', $value);
+            // The option hooks just cleared the key-status cache; seed it with
+            // this answer so the reload doesn't verify the same key again.
+            KeyStatus::remember($value, $result);
+            // Drop caches built for the previous connection (or the empty
+            // language list cached while disconnected).
+            delete_transient('universally_site_config');
+            delete_transient('universally_all_languages');
         }
 
         return new WP_REST_Response([
@@ -300,51 +346,14 @@ class RestApi
     }
 
     /**
-     * Verify an API key against the Universally API
+     * Verify an API key against the Universally API (uncached)
      *
      * @param string $key The API key to verify
-     * @return array{valid: bool, message: string}
+     * @return array{valid: bool, message: string, code: string, status: string, checked_at: int}
      */
     private function verifyKey(string $key): array
     {
-        $response = $this->http->get('/connect/keys/verify', [
-            'X-API-Key' => $key,
-        ]);
-
-        if ($response === false) {
-            Log::error('API key verification failed: cURL error');
-            return [
-                'valid'   => false,
-                'message' => __('Could not connect to the API server. Please try again later.', 'universally-language-translation-multilingual-tool'),
-            ];
-        }
-
-        $code = $response['code'] ?? null;
-
-        $errorMap = [
-            'API_KEY_INVALID'        => __('API key is invalid.', 'universally-language-translation-multilingual-tool'),
-            'API_KEY_INVALID_FORMAT' => __('API key format is invalid.', 'universally-language-translation-multilingual-tool'),
-            'SITE_IS_DELETED'        => __('The site associated with this key has been deleted.', 'universally-language-translation-multilingual-tool'),
-        ];
-
-        if ($code === 'KEY_VALID') {
-            return [
-                'valid'   => true,
-                'message' => __('API key is valid.', 'universally-language-translation-multilingual-tool'),
-            ];
-        }
-
-        if (isset($errorMap[$code])) {
-            return [
-                'valid'   => false,
-                'message' => $errorMap[$code],
-            ];
-        }
-
-        return [
-            'valid'   => false,
-            'message' => __('Could not verify API key. Please try again.', 'universally-language-translation-multilingual-tool'),
-        ];
+        return KeyStatus::verify($key, $this->http);
     }
 
     /**

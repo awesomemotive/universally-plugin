@@ -60,6 +60,7 @@ class Onboarding
         register_activation_hook(UNIVERSALLY_PLUGIN_FILE, [$this, 'recordInstallSource']);
         register_activation_hook(UNIVERSALLY_PLUGIN_FILE, [$this, 'scheduleRedirect']);
         add_action('admin_init', [$this, 'maybeRedirect']);
+        add_action('wp_ajax_universally_prepare_preview', [$this, 'ajaxPreparePreview']);
         add_action('admin_menu', [$this, 'registerCallbackPage']);
         add_action('current_screen', [$this, 'setCallbackPageTitle']);
         add_action('current_screen', [$this, 'suppressAdminNotices']);
@@ -282,6 +283,9 @@ class Onboarding
 
     /**
      * Build the hosted onboarding URL, persisting a round-trip state nonce.
+ *
+ * `cancel_url` is where the hosted flow's ✕ sends the user; `return_url` is
+ * where the completed flow comes back with its activation token.
      *
      * Targets /connect/account directly: the Welcome step is replicated in the
      * plugin's own connect screen (see renderLanding), so the hosted flow starts
@@ -307,6 +311,9 @@ class Onboarding
             'site_name'   => get_bloginfo('name'),
             'site_locale' => get_locale(),
             'return_url'  => admin_url('admin.php?page=' . self::CALLBACK_SLUG),
+            // Where the hosted flow's ✕ lands: the settings page, not the connect
+            // Welcome screen (which is what return_url renders without a token).
+            'cancel_url'  => admin_url('admin.php?page=' . UNIVERSALLY_SETTINGS_KEY),
             'state'       => $state,
             'source'      => $this->connectSource(),
             'v'           => '1',
@@ -314,6 +321,78 @@ class Onboarding
         ];
 
         return add_query_arg($args, $this->appBase() . '/connect/account');
+    }
+
+    /**
+     * Capture this site's logged-out homepage and hand it to Universally under
+     * the connect state, so the hosted wizard can show the homepage translated
+     * even when Universally's servers cannot reach the site (local, private,
+     * firewalled). Called by the Welcome CTA just before it opens the wizard;
+     * any failure is non-fatal — the wizard simply skips its preview page.
+     */
+    public function ajaxPreparePreview(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied', 403);
+            return;
+        }
+        check_ajax_referer('universally_prepare_preview', 'nonce');
+
+        $state = get_transient(self::STATE_KEY);
+        if (!is_string($state) || $state === '') {
+            // The CTA link already minted one; mirror buildConnectUrl's TTL refresh.
+            $state = wp_generate_password(32, false);
+            set_transient(self::STATE_KEY, $state, self::STATE_TTL);
+        }
+
+        // A cookie-less request to ourselves renders the page as a visitor sees it.
+        $response = wp_remote_get(home_url('/'), [
+            'timeout'     => 15,
+            'redirection' => 3,
+            'sslverify'   => false,
+            'cookies'     => [],
+            'headers'     => ['Accept' => 'text/html', 'Cache-Control' => 'no-cache'],
+            'user-agent'  => 'UniversallyPreview/1.0 (+https://universally.com)',
+        ]);
+        if (is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200) {
+            \Universally\Log::error('Preview upload skipped: homepage not reachable from the server', [
+                'url'    => home_url('/'),
+                'error'  => is_wp_error($response) ? $response->get_error_message() : null,
+                'status' => is_wp_error($response) ? null : (int) wp_remote_retrieve_response_code($response),
+            ]);
+            wp_send_json_error('Homepage not reachable', 502);
+            return;
+        }
+        $html = (string) wp_remote_retrieve_body($response);
+        $type = (string) wp_remote_retrieve_header($response, 'content-type');
+        if ($html === '' || strlen($html) > 1500000 || ($type !== '' && stripos($type, 'text/html') === false)) {
+            \Universally\Log::error('Preview upload skipped: homepage not previewable', [
+                'bytes'       => strlen($html),
+                'contentType' => $type,
+            ]);
+            wp_send_json_error('Homepage not previewable', 422);
+            return;
+        }
+
+        $result = (new Http())->post('onboarding/preview-source', [
+            'state'   => $state,
+            'siteUrl' => home_url('/'),
+            'html'    => $html,
+        ]);
+        if ($result === false) {
+            \Universally\Log::error('Preview upload failed: the API did not accept the homepage', [
+                'bytes' => strlen($html),
+                'state' => substr($state, 0, 6) . '…',
+            ]);
+            wp_send_json_error('Upload failed', 502);
+            return;
+        }
+        \Universally\Log::info('Preview upload stored for the connect wizard', [
+            'bytes'  => strlen($html),
+            'state'  => substr($state, 0, 6) . '…',
+            'stored' => (bool) ($result['data']['stored'] ?? true),
+        ]);
+        wp_send_json_success(['stored' => (bool) ($result['data']['stored'] ?? true)]);
     }
 
     /**
@@ -501,11 +580,15 @@ class Onboarding
             }
             .uvly-connect__btn:hover { transform: translateY(-2px); color: #fff; box-shadow: 0 18px 36px -10px rgba(101, 12, 223, 0.75); }
             .uvly-connect__btn:active { transform: translateY(0); }
-            /* WP admin's global `a:focus { border-radius: 2px }` squares the button
-               on click/focus — keep our radius and give a proper focus ring. */
+            /* WP admin's global `a:focus`/`a:active` styles (blue text, 2px blue
+               box-shadow ring, 2px radius) override the button on click/focus —
+               keep our colors, shadow and radius, and give a proper focus ring. */
             .uvly-connect__btn:focus,
             .uvly-connect__btn:focus-visible,
-            .uvly-connect__btn:active { border-radius: 12px; }
+            .uvly-connect__btn:active {
+                color: #fff; border-radius: 12px; outline: none;
+                box-shadow: 0 12px 28px -10px rgba(101, 12, 223, 0.65);
+            }
             .uvly-connect__btn:focus-visible { outline: 2px solid #7c3aed; outline-offset: 3px; }
             .uvly-connect__close:focus,
             .uvly-connect__close:focus-visible { border-radius: 6px; }
@@ -610,6 +693,31 @@ class Onboarding
         (function () {
             var cb  = document.getElementById('uvly-usage');
             var cta = document.getElementById('uvly-cta');
+            // Before opening the wizard, hand Universally this site's logged-out
+            // homepage so the wizard can preview it translated (works for local
+            // and private sites too). Best effort with a short budget: the wizard
+            // opens either way and just skips its preview page if this failed.
+            if (cta && typeof window.fetch === 'function') {
+                cta.addEventListener('click', function (e) {
+                    if (cta.dataset.preparing === 'done') return;
+                    e.preventDefault();
+                    cta.dataset.preparing = 'busy';
+                    cta.setAttribute('aria-busy', 'true');
+                    cta.style.pointerEvents = 'none';
+                    var label = cta.firstChild && cta.firstChild.nodeType === 3 ? cta.firstChild : null;
+                    var original = label ? label.nodeValue : '';
+                    if (label) label.nodeValue = <?php echo wp_json_encode(__('Preparing your preview…', 'universally-language-translation-multilingual-tool')); ?>;
+                    var go = function () { cta.dataset.preparing = 'done'; if (label) label.nodeValue = original; window.location.href = cta.href; };
+                    var form = new FormData();
+                    form.append('action', 'universally_prepare_preview');
+                    form.append('nonce', <?php echo wp_json_encode(wp_create_nonce('universally_prepare_preview')); ?>);
+                    var controller = typeof AbortController === 'function' ? new AbortController() : null;
+                    var timer = setTimeout(function () { if (controller) controller.abort(); }, 20000);
+                    fetch(<?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>, { method: 'POST', body: form, credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+                        .catch(function () {})
+                        .then(function () { clearTimeout(timer); go(); });
+                });
+            }
             if (cb && cta) {
                 var sync = function () {
                     try {

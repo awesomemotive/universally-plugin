@@ -8,7 +8,7 @@ interface FieldConfig {
   independent?: boolean;
   /** Connect mode: render the hosted-onboarding launch button instead of a raw key input. */
   connect?: boolean;
-  /** Hosted onboarding URL the "Connect" button links to (built server-side with a fresh state). */
+  /** Where the "Connect" button goes: the plugin's connect Welcome page, which hands off to the hosted flow. */
   connectUrl?: string;
   connectLabel?: string;
   connectDescription?: string;
@@ -33,23 +33,43 @@ interface Props {
   config: FieldConfig;
   value: string;
   onChange: (value: string) => void;
+  /** Called after a key is activated successfully (used by hosts that reload into the connected view). */
+  onActivated?: () => void;
+  /**
+   * Load the stored key's status on mount (default true). Hosts that only want
+   * a blank "enter a new key" input (the reconnect screen) turn it off, so the
+   * stored key isn't pre-filled.
+   */
+  fetchOnMount?: boolean;
 }
 
 interface ApiKeyResponse {
   valid: boolean;
   message: string;
   value?: string;
+  /** none | valid | rejected | unknown (GET only). */
+  status?: string;
 }
 
 const cache = new Map<string, ApiKeyResponse>();
+
+// Fields are self-contained (no shared store), so the connection state crosses
+// field boundaries as a window event. The languages table listens for it to
+// follow Connect / Disconnect without a reload; keep the name and the
+// `{ detail: { connected } }` shape in sync with field-languages-table.
+const CONNECTION_EVENT = 'universally:connection';
+
+function announceConnection(connected: boolean): void {
+  window.dispatchEvent(new CustomEvent(CONNECTION_EVENT, { detail: { connected } }));
+}
 
 function maskKey(key: string): string {
   if (key.length <= 8) return '*'.repeat(key.length);
   return key.slice(0, 4) + '*'.repeat(key.length - 8) + key.slice(-4);
 }
 
-export function ApiKeyField({ fieldId, config }: Props) {
-  const cached = cache.get(config.endpoint);
+export function ApiKeyField({ fieldId, config, onActivated, fetchOnMount = true }: Props) {
+  const cached = fetchOnMount ? cache.get(config.endpoint) : undefined;
   const [inputValue, setInputValue] = useState(cached?.value ?? '');
   const [valid, setValid] = useState(cached?.valid ?? false);
   const [message, setMessage] = useState<string | null>(cached?.message || null);
@@ -61,11 +81,15 @@ export function ApiKeyField({ fieldId, config }: Props) {
   // Connect mode: require a confirm click before disconnecting (avoids accidental clicks).
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
   // Have we resolved the initial status yet? Avoids a Connect→Connected flash.
-  const [resolved, setResolved] = useState(cache.has(config.endpoint));
+  const [resolved, setResolved] = useState(!fetchOnMount || cache.has(config.endpoint));
+  // The API couldn't be reached to check the stored key. Connect mode keeps
+  // showing the site as connected (a status banner above explains it).
+  const [unreachable, setUnreachable] = useState(cached?.status === 'unknown');
 
   const { loading, error, request } = useFieldApi<ApiKeyResponse>(config.endpoint);
 
   useEffect(() => {
+    if (!fetchOnMount) return;
     if (cache.has(config.endpoint)) {
       setResolved(true);
       return;
@@ -78,11 +102,12 @@ export function ApiKeyField({ fieldId, config }: Props) {
         setValid(res.valid);
         setMessage(res.message || null);
         setMessageType(res.valid ? 'success' : 'info');
+        setUnreachable(res.status === 'unknown');
       }
       setResolved(true);
     };
     fetchStatus();
-  }, [request, config.endpoint]);
+  }, [request, config.endpoint, fetchOnMount]);
 
   const handleActivate = async () => {
     const res = await request('POST', { value: inputValue });
@@ -91,6 +116,10 @@ export function ApiKeyField({ fieldId, config }: Props) {
       setValid(res.valid);
       setMessage(res.message);
       setMessageType(res.valid ? 'success' : 'error');
+      if (res.valid) {
+        announceConnection(true);
+        onActivated?.();
+      }
     }
   };
 
@@ -102,9 +131,11 @@ export function ApiKeyField({ fieldId, config }: Props) {
       setValid(false);
       setShowManual(false);
       setConfirmingDisconnect(false);
+      setUnreachable(false);
       // In connect mode show a branded confirmation rather than the raw API message.
       setMessage(config.connect ? (config.disconnectedLabel ?? 'Universally disconnected') : res.message);
       setMessageType('info');
+      announceConnection(false);
     }
   };
 
@@ -174,7 +205,7 @@ export function ApiKeyField({ fieldId, config }: Props) {
       );
     }
 
-    if (valid) {
+    if (valid || unreachable) {
       return (
         <div className="wp-panel-api-key wp-panel-api-key--status">
           <div className="wp-panel-api-key__connected">
@@ -218,15 +249,17 @@ export function ApiKeyField({ fieldId, config }: Props) {
               </div>
             </Modal>
           )}
-          <div className="wp-panel-api-key__status">
-            <span className="wp-panel-api-key__status-dot" aria-hidden="true" />
-            <span className="wp-panel-api-key__status-label">
-              {config.statusLabel ?? 'API status'}:{' '}
-              <strong className="wp-panel-api-key__status-value">
-                {config.statusValue ?? 'Operational'}
-              </strong>
-            </span>
-          </div>
+          {!unreachable && (
+            <div className="wp-panel-api-key__status">
+              <span className="wp-panel-api-key__status-dot" aria-hidden="true" />
+              <span className="wp-panel-api-key__status-label">
+                {config.statusLabel ?? 'API status'}:{' '}
+                <strong className="wp-panel-api-key__status-value">
+                  {config.statusValue ?? 'Operational'}
+                </strong>
+              </span>
+            </div>
+          )}
         </div>
       );
     }
