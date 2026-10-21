@@ -245,6 +245,9 @@ You can reach our support team through the [Universally dashboard](https://app.u
 
 == Changelog ==
 
+= 1.0.11 =
+* Fix: A damaged saved API key no longer crashes the whole site. The plugin now shows as disconnected so you can reconnect.
+
 = 1.0.10 =
 * New: A redesigned General tab that guides new sites through setup.
 * Improvement: A smoother connection flow, with a translated preview of your homepage during setup and clear steps to reconnect when the API key stops working.
