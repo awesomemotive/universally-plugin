@@ -18,9 +18,12 @@ if (!defined('ABSPATH')) {
 function universally_get_api_key(): string
 {
     if (defined('UNIVERSALLY_API_KEY')) {
-        return trim(UNIVERSALLY_API_KEY);
+        return is_string(UNIVERSALLY_API_KEY) ? trim(UNIVERSALLY_API_KEY) : '';
     }
-    return get_option('universally_api_key', '');
+    // A non-string value (corrupted option, old-plugin data) would fatal on
+    // every request; treat it as "not connected" so the site stays up.
+    $key = get_option('universally_api_key', '');
+    return is_string($key) ? trim($key) : '';
 }
 
 /**

@@ -67,7 +67,8 @@ function universally_migrate_old_plugin_data(): void
     $oldKey = get_option($legacyOptionName, '');
     $newKey = get_option('universally_api_key', '');
 
-    if (!empty($oldKey) && empty($newKey)) {
+    // Only carry over a string key; an array here would be stored as-is.
+    if (is_string($oldKey) && $oldKey !== '' && empty($newKey)) {
         update_option('universally_api_key', $oldKey);
         delete_option($legacyOptionName);
     }
